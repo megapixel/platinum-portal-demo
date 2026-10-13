@@ -1,0 +1,29 @@
+{
+  "project_name": "platinum-immigration-portal-prototype",
+  "ref": "Q202607041IMMIGRATION",
+  "client": "Platinum Immigration Consultancy Pte. Ltd.",
+  "prepared_by": "Megapixel Consulting & Solutions Pte Ltd",
+  "type": "static HTML prototype (no build, offline)",
+  "master_language": "JavaScript (vanilla, browser)",
+  "db_type": "browser localStorage (simulated)",
+  "files": [
+    { "path": "index.html", "role": "App shell, demo banner" },
+    { "path": "css/styles.css", "role": "Styles, mobile-first" },
+    { "path": "js/app.js", "role": "domain, seed, store, storage, ai (mock), messaging, crm, metrics, reminders, auth, api guards, views" },
+    { "path": "seed-files/passport_elizabeth_tan.png", "role": "Correct passport upload (demo step 4)" },
+    { "path": "seed-files/passport_blurry_elizabeth_tan.png", "role": "Unreadable expiry date demo" },
+    { "path": "seed-files/payslip_elizabeth_tan_2026-09.pdf", "role": "Wrong file for passport slot (demo step 4)" },
+    { "path": "seed-files/payslips_elizabeth_tan_apr-sep_2026.pdf", "role": "Correct 6-month payslips" },
+    { "path": "seed-files/employer_letter_signed_elizabeth_tan.pdf", "role": "Fixes rejected employer letter" },
+    { "path": "seed-files/noa_chong_wei_ling_ya2026.pdf", "role": "Notice of Assessment sample" },
+    { "path": "seed-files/cpf_statement_rizal_santos_12m.pdf", "role": "CPF statement sample" },
+    { "path": "README.md", "role": "Setup, demo logins, demo script, mock vs real AI, retention TODO" },
+    { "path": "ARCHITECTURE.md", "role": "Interfaces and production requirements" },
+    { "path": "logs/superagent.log", "role": "Orchestration decisions" }
+  ],
+  "flags_for_review": [
+    "Checklist templates are samples; client to confirm real lists",
+    "CRM/WhatsApp platform TBC",
+    "Data retention period to be agreed (README TODO)"
+  ]
+}

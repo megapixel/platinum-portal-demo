@@ -1,0 +1,11 @@
+[2026-10-13T13:34:00+08:00] [SUPERAGENT] [INFO] Spec received: Q202607041IMMIGRATION client document portal prototype.
+[2026-10-13T13:36:00+08:00] [SUPERAGENT] [INFO] User decision: build in ./immgration root, brief-first with light suite (no Docker/CI/deploy).
+[2026-10-13T13:40:00+08:00] [SUPERAGENT] [INFO] User decision: switch from Next.js/Prisma to a simple HTML prototype (vanilla JS, no build, offline).
+[2026-10-13T13:40:00+08:00] [SUPERAGENT] [INFO] Gap decision: real Claude AI call documented only (ARCHITECTURE.md); browser code uses deterministic mock to avoid exposing an API key.
+[2026-10-13T13:40:00+08:00] [SUPERAGENT] [INFO] Gap decision: "Marriage certificate (if married)" included only for married clients and then required.
+[2026-10-13T13:40:00+08:00] [SUPERAGENT] [INFO] Gap decision: added second staff user (sarah@demo.sg) so the staff filter is meaningful.
+[2026-10-13T14:00:00+08:00] [OPERATOR] [INFO] Wrote index.html, css/styles.css, js/app.js, seed-files/* (7 specimen files, generated with Pillow).
+[2026-10-13T14:05:00+08:00] [AUDITOR] [WARN] Outbox grid overflowed on long message previews; fixed with minmax(0,1fr).
+[2026-10-13T14:06:00+08:00] [AUDITOR] [INFO] AUDITOR PASS: headless Chrome demo-script run 25/25 checks passed (RAG, reminders, magic link, AI flag/pass, accept 63%->75%, stage change, access control, 390px no horizontal scroll, no page errors). No em dashes in UI copy.
+[2026-10-13T14:30:00+08:00] [SUPERAGENT] [INFO] User request: add 'New case'. Added staff form (#/staff/new), api.createCase (client login + template checklist + optional welcome WhatsApp). AUDITOR PASS: 14/14 new-case checks, original 25/25 demo checks still pass.
+[2026-10-13T15:00:00+08:00] [SUPERAGENT] [INFO] User request: one-click random sample data on New case form. Added 'Fill with sample data' (12 SEA family presets, unique emails, random case type/phone/dates). AUDITOR PASS: 17/17 checks; earlier suites 25/25 and 14/14 still pass.
