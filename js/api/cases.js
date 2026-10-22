@@ -107,15 +107,15 @@ export async function createClientWithCase(spec, actor) {
 
 
 /** Moves a case to a stage: history, audit, client message, CRM hook. Callers check permissions and save. */
-export async function changeStage(c, stage, actor, note) {
+export async function changeStage(c, stage, actor, note, opts) {
   if (!(stage in STAGE_INDEX)) throw new HttpError(400, 'Invalid stage.');
   if (c.stage === stage) return;
   const before = c.stage;
   c.stage = stage;
-  db.stageHistory.push({ id: uid('sh'), caseId: c.id, stage, changedAt: nowIso(), changedById: actor.id });
+  db.stageHistory.push({ id: uid('sh'), caseId: c.id, stage, attempt: c.attempt || 1, changedAt: nowIso(), changedById: actor.id });
   store.audit(c.id, 'STAGE_CHANGED', STAGES[STAGE_INDEX[stage]].label + (note ? ` (${note})` : ''), actor.id, null, { before: { stage: before }, after: { stage } });
   const submitted = stage === 'SUBMITTED';
-  await notifyClient(store.caseClient(c), {
+  if (!(opts && opts.silent)) await notifyClient(store.caseClient(c), {
     caseId: c.id, trigger: submitted ? 'APPLICATION_SUBMITTED' : 'STAGE_CHANGED', templateKey: submitted ? 'APPLICATION_SUBMITTED' : 'STAGE_CHANGED', link: portalLinkFor(c),
     vars: { caseNo: c.id, stage: STAGES[STAGE_INDEX[stage]].label, caseType: CASE_TYPES[c.caseType].inMessage, date: fmtDate(nowIso()) },
   });
@@ -250,6 +250,7 @@ export const caseApi = {
    */
   async setStage(caseId, stage, opts) {
     const { user: staff, caseRec: c } = requireCaseAccess(caseId, 'case:stage');
+    if (stage === 'OUTCOME' && !c.outcome) throw new HttpError(400, 'Record the outcome (approved or rejected) to move a case to Outcome.');
     let note = '';
     if (stage === 'SUBMITTED' && c.stage !== 'SUBMITTED' && can(staff, 'invoice:view')) {
       const bal = caseBalance(caseId);

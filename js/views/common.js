@@ -25,6 +25,7 @@ export const ui = {
   queueSel: null,
   adminTab: 'permissions',
   invoiceFilter: '',
+  audit: {},
   msgTplKey: null,
   msgTplError: '',
 };

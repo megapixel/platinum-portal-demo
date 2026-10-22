@@ -50,3 +50,20 @@ export function formProgress(formDef, data) {
   const done = required.filter((f) => String((data || {})[f.key] == null ? '' : data[f.key]).trim() !== '').length;
   return { done, total: required.length, pct: required.length ? Math.round((done * 100) / required.length) : 100 };
 }
+
+/**
+ * Whether an accepted document can carry over into a re-application.
+ * Not reusable when its own expiry date has passed, or when it is older than the validity window for its type
+ * (config.docValidityMonths, e.g. an employer letter must be dated within 3 months). Returns { ok, reason }.
+ */
+export function reuseCheck(item, doc, config, now = new Date()) {
+  if (item.status !== 'ACCEPTED' || !doc) return { ok: false, reason: 'Not accepted in the last attempt' };
+  const exp = doc.aiExtracted && doc.aiExtracted['expiry date'];
+  if (exp) {
+    const d = new Date(exp);
+    if (!Number.isNaN(d.getTime()) && d < now) return { ok: false, reason: 'Expired. Please upload a current copy.' };
+  }
+  const months = (config.docValidityMonths || {})[item.docType];
+  if (months && new Date(addMonths(doc.uploadedAt, months)) < now) return { ok: false, reason: `Older than ${months} months. Please upload a recent copy.` };
+  return { ok: true, reason: '' };
+}

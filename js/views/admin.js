@@ -8,12 +8,14 @@ import { auth } from '../auth/session.js';
 import { can, MATRIX, PERMISSIONS, ASSIGNED_ONLY } from '../auth/permissions.js';
 import { introducerStats } from '../api/leads.js';
 import { ui } from './common.js';
+import { auditTimeline } from './audit.js';
+import { api } from '../api/index.js';
 
 const STAFF_ROLES = ['ADMIN', 'OPS_MANAGER', 'CONSULTANT', 'DOCUMENT_SPECIALIST', 'CLIENT'];
 
 function tabs(u) {
   const t = [['permissions', 'Permissions', can(u, 'config:manage')], ['users', 'Users', can(u, 'user:manage')],
-    ['messaging', 'Messaging', can(u, 'messagetemplate:manage')], ['catalogue', 'Sales catalogue', can(u, 'introducer:manage')], ['settings', 'Settings', can(u, 'config:manage')]];
+    ['messaging', 'Messaging', can(u, 'messagetemplate:manage')], ['catalogue', 'Sales catalogue', can(u, 'introducer:manage')], ['audit', 'Audit', can(u, 'config:manage')], ['settings', 'Settings', can(u, 'config:manage')]];
   return t.filter((x) => x[2]);
 }
 
@@ -21,7 +23,7 @@ export function viewAdmin() {
   const u = auth.currentUser();
   const available = tabs(u);
   if (!available.some((t) => t[0] === ui.adminTab)) ui.adminTab = available[0][0];
-  const body = { permissions: permissionsTab, users: usersTab, messaging: messagingTab, catalogue: catalogueTab, settings: settingsTab }[ui.adminTab]();
+  const body = { permissions: permissionsTab, users: usersTab, messaging: messagingTab, audit: auditTab, catalogue: catalogueTab, settings: settingsTab }[ui.adminTab]();
   return `<main class="page wide stack">
     <div><h1 style="font-size:22px">Admin</h1><p class="muted small">Access rules, users, the sales catalogue and settings the client has not confirmed yet.</p></div>
     <div class="tpl-tabs">${available.map(([k, l]) => `<button class="btn sm ${ui.adminTab === k ? 'active' : ''}" data-action="adminTab" data-tab="${k}">${l}</button>`).join('')}</div>
@@ -141,4 +143,10 @@ function messagingTab() {
     <div><span class="tiny muted" style="font-weight:600">Preview with sample data</span>
       <div class="wa-bubble preview-bubble">${esc(preview).replace(/\n/g, '<br>')}</div></div>
   </section>`;
+}
+
+function auditTab() {
+  return `<section class="card"><h2>Audit timeline</h2>
+    <p class="small muted" style="margin-bottom:8px">Everything recorded across the system, including permission changes and template edits.</p>
+    ${auditTimeline('all', api.auditFor({}), { showRef: true, limit: 300 })}</section>`;
 }

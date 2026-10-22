@@ -634,3 +634,19 @@ label.row input[type=checkbox] { margin-top: 3px; flex: 0 0 auto; }
 .pay-form { display: grid; gap: 6px; grid-template-columns: 1fr 1fr; }
 .pay-form button { grid-column: 1 / -1; }
 .kpi .num.sm { font-size: 20px; }
+
+/* outcome, audit timeline */
+.seg-opt { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--border); padding: 7px 14px; cursor: pointer; background: var(--surface); }
+.seg-opt:first-child { border-radius: 8px 0 0 8px; }
+.seg-opt:last-child { border-radius: 0 8px 8px 0; margin-left: -1px; }
+.seg-opt:has(input:checked) { background: var(--navy); color: #fff; border-color: var(--navy); }
+.timeline { list-style: none; margin: 0; padding: 0 0 0 12px; border-left: 2px solid var(--border); display: grid; gap: 12px; max-height: 520px; overflow: auto; }
+.timeline li { position: relative; padding-left: 12px; }
+.timeline li::before { content: ""; position: absolute; left: -19px; top: 6px; width: 10px; height: 10px; border-radius: 50%; background: var(--grey); border: 2px solid var(--surface); }
+.timeline li.tl-stage::before { background: var(--navy); }
+.timeline li.tl-document::before { background: var(--blue); }
+.timeline li.tl-payment::before { background: var(--green); }
+.timeline li.tl-outcome::before { background: var(--gold); }
+.timeline li.tl-access::before, .timeline li.tl-letter::before { background: var(--red); }
+.tl-changes { display: flex; flex-wrap: wrap; gap: 4px; margin: 3px 0; }
+.tl-changes span { background: var(--grey-bg); border-radius: 6px; padding: 1px 8px; font-size: 12px; font-family: ui-monospace, Menlo, monospace; }

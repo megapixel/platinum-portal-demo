@@ -18,6 +18,7 @@ export function defaultConfig() {
       { label: 'Deposit', pct: 50, due: 'ON_ISSUE' },
       { label: 'Balance', pct: 50, due: 'BEFORE_SUBMISSION' },
     ],
+    docValidityMonths: { employer_letter: 3, photo: 3, payslip: 6 },// documents older than this are not reused on re-application (TBC)
     paymentTermsDays: 14,                                         // deposit due this many days after issue (TBC)
     stageAfterPack: 'DOCUMENTS_COMPLETE',                         // or REVIEW_AND_PREPARATION
     warnUnpaidOnSubmit: true,

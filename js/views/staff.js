@@ -12,6 +12,8 @@ import { casePeople } from '../api/cases.js';
 import { DAY_NAMES, effectiveRule } from '../reminders.js';
 import { ruleFields } from './admin.js';
 import { paymentChip, invoiceCard } from './billing.js';
+import { auditTimeline } from './audit.js';
+import { outcomeCard, attemptsCard } from './outcome.js';
 import { storage } from '../storage.js';
 
 const DAY = 86400000;
@@ -110,7 +112,7 @@ function specimenPreview(doc, item) {
 
 export function docPreview(doc, item) {
   if (doc.source === 'seed') return specimenPreview(doc, item);
-  const url = storage.url(doc.id);
+  const url = storage.url(doc.blobId || doc.id);
   if (!url) return `<p class="muted small" style="padding:16px;text-align:center">File preview not available in this browser session.<br>Production serves files from secure storage through an authenticated route.</p>`;
   if (doc.mimeType === 'application/pdf') return `<iframe src="${esc(url)}" title="${esc(doc.fileName)}"></iframe>`;
   return `<img src="${esc(url)}" alt="${esc(doc.fileName)}">`;
@@ -163,7 +165,7 @@ export function viewCase(caseId) {
       <div>
         <a href="#/staff" class="small">&larr; Dashboard</a>
         <h1 style="font-size:22px;margin-top:4px">${ragDot(rag)} ${esc(client.name)}</h1>
-        <p class="muted small">${esc(c.id)} &middot; ${esc(CASE_TYPES[c.caseType].label)} &middot; ${esc(rag.reason)} ${can(u, 'invoice:view') ? paymentChip(c.id) : ''}</p>
+        <p class="muted small">${esc(c.id)}${c.attempt > 1 ? ` &middot; <b>Attempt ${c.attempt}</b>` : ''} &middot; ${esc(CASE_TYPES[c.caseType].label)} &middot; ${esc(rag.reason)} ${can(u, 'invoice:view') ? paymentChip(c.id) : ''}</p>
       </div>
       <div class="row">
         ${can(u, 'pack:generate') ? `<a class="btn" href="#/staff/case/${encodeURIComponent(c.id)}/pack">Consolidation</a>` : ''}
@@ -204,6 +206,8 @@ export function viewCase(caseId) {
             ${canEditInfo ? `<a class="btn sm" href="#/staff/case/${encodeURIComponent(c.id)}/info">${prog.pct < 100 ? 'Fill in for client' : 'View or edit'}</a>` : ''}
           </div>
         </section>
+        ${outcomeCard(c)}
+        ${attemptsCard(c)}
         ${invoiceCard(c)}
         ${can(u, 'message:send') ? reminderCard(c, client) : ''}
         <section class="card">
@@ -217,12 +221,7 @@ export function viewCase(caseId) {
           </ul>
         </section>
         ${can(u, 'outbox:view') ? messageLogCard(c) : ''}
-        <section class="card">
-          <h2>Audit trail</h2>
-          <ul class="history">
-            ${audit.map((a) => `<li><b>${esc(a.action.replace(/_/g, ' ').toLowerCase())}</b> ${esc(a.detail)}<br><span class="muted">${fmtDateTime(a.at)} by ${esc((store.user(a.actorId) || {}).name || '-')}</span></li>`).join('') || '<li class="muted">No actions yet.</li>'}
-          </ul>
-        </section>
+        ${can(u, 'audit:view') ? `<section class="card"><h2>Audit timeline</h2>${auditTimeline('case:' + c.id, api.auditFor({ caseId: c.id }))}</section>` : ''}
       </div>
 
       <section class="card">
@@ -249,8 +248,9 @@ export function caseItemCard(i, u) {
       <div class="grow"><b>${esc(i.label)}</b>${i.required ? '' : ' <span class="tiny muted">optional</span>'}
         <div class="tiny muted">${doc ? `${esc(doc.fileName)} &middot; v${doc.version || 1} &middot; ${relTime(doc.uploadedAt)}` : 'Nothing uploaded yet'}${i.dueDate ? ` &middot; due ${fmtDate(i.dueDate)}` : ''}</div>
         ${i.status === 'REJECTED' && i.staffRemark ? `<div class="tiny" style="color:var(--red)">Remark: ${esc(i.staffRemark)}</div>` : ''}
+        ${i.attemptNote ? `<div class="tiny" style="color:var(--amber)">Needs renewing: ${esc(i.attemptNote)}</div>` : ''}
       </div>
-      ${i.reuploaded ? '<span class="chip blue plain">re-uploaded</span>' : ''}
+      ${i.reuploaded ? '<span class="chip blue plain">re-uploaded</span>' : ''}${i.reusedFromAttempt ? `<span class="chip grey plain">reused from attempt ${i.reusedFromAttempt}</span>` : ''}
       ${chip(i.status)}
     </div>
     ${open ? `<div class="item-body">

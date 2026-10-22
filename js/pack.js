@@ -45,7 +45,7 @@ async function imagePdf(bytes, mime) {
 
 /** One PDF per accepted document: uploaded PDFs pass through, images get a page, specimens are drawn. */
 async function entryPdf(entry, caseRec) {
-  const raw = entry.doc.source === 'seed' ? null : await storage.bytes(entry.doc.id);
+  const raw = entry.doc.source === 'seed' ? null : await storage.bytes(entry.doc.blobId || entry.doc.id);
   try {
     if (raw && entry.doc.mimeType === 'application/pdf') { await lib().PDFDocument.load(raw); return new Uint8Array(raw); }
     if (raw && /^image\/(png|jpeg)$/.test(entry.doc.mimeType)) return await imagePdf(raw, entry.doc.mimeType);

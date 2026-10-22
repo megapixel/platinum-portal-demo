@@ -14,6 +14,8 @@ import { buildPack } from '../pack.js';
 import { buildInvoicePdf } from '../invoicepdf.js';
 import { accountingExport } from '../providers/accounting.js';
 import { statusOf } from '../api/invoices.js';
+import { filterAudit } from './audit.js';
+import { describeChange, categoryOf } from '../audit.js';
 import { paidAmount, balanceOf } from '../invoicing.js';
 
 function handleError(e, modalTarget) {
@@ -68,6 +70,21 @@ async function setStageConfirmed(caseId, stage) {
 const onQueue = () => parseHash().path === '/staff/review';
 
 const actions = {
+  async reapply(el) {
+    const rule = db.config.reapplicationRule;
+    if (!window.confirm(rule === 'NEW_CASE' ? 'Open a new linked case for the re-application? Accepted documents that have not expired are copied across.' : 'Continue this case as a new attempt? Accepted documents that have not expired are kept, and the rest go back to Pending.')) return;
+    try {
+      const { caseRec, reused, renewed } = await api.reapply(el.dataset.case);
+      go('/staff/case/' + encodeURIComponent(caseRec.id));
+      toast(`Attempt ${caseRec.attempt} started. ${reused} document${reused === 1 ? '' : 's'} reused, ${renewed} to renew.`, 6000);
+    } catch (e) { handleError(e); }
+  },
+  exportAuditCsv(el) {
+    const [kind, id] = el.dataset.key.split(':');
+    const entries = filterAudit(el.dataset.key, api.auditFor(kind === 'case' ? { caseId: id } : kind === 'lead' ? { leadId: id } : {}));
+    csvDownload(`audit-${kind}${id ? '-' + id : ''}.csv`, toCsv(['When', 'Category', 'Action', 'Detail', 'Changes', 'By', 'Ref'],
+      entries.map((a) => [a.at, categoryOf(a), a.action, a.detail, describeChange(a.before, a.after).join('; '), (store.user(a.actorId) || {}).name || 'system', a.caseId || a.leadId || ''])));
+  },
   async payNow(el) {
     try { await api.payNow(el.dataset.invoice); render(); toast('Payment received. Thank you.'); } catch (e) { handleError(e); }
   },
@@ -258,6 +275,13 @@ root.addEventListener('submit', async (e) => {
       await requestMagicLink(v('email'));
       ui.magicSent = true; render();
     }
+    if (f.id === 'outcomeForm') {
+      try {
+        const vals = formValues(f);
+        await api.recordOutcome(f.dataset.case, vals);
+        render(); toast(`Outcome recorded.${store.case(f.dataset.case).stage === 'OUTCOME' ? ' The client was notified.' : ''}`, 5000);
+      } catch (err) { handleError(err); }
+    }
     if (f.classList.contains('pay-form')) {
       try { await api.recordPayment(f.dataset.invoice, formValues(f)); render(); toast('Payment recorded and the client was sent a receipt message.'); } catch (err) { handleError(err); }
     }
@@ -411,6 +435,7 @@ root.addEventListener('change', async (e) => {
       render();
       return;
     }
+    if (el.matches('[data-audit-filter]')) { ui.audit[el.dataset.auditFilter] = { ...(ui.audit[el.dataset.auditFilter] || { cat: '', actor: '', q: '' }), [el.dataset.field]: el.value }; render(); return; }
     if (el.matches('[data-invoice-filter]')) { ui.invoiceFilter = el.value; render(); return; }
     if (el.matches('[data-msgtpl-select]')) { ui.msgTplKey = el.value; ui.msgTplError = ''; render(); return; }
     if (el.matches('[data-case-pause]')) { api.setCaseReminder(el.dataset.casePause, { paused: el.checked }); render(); toast(el.checked ? 'Reminders paused for this case.' : 'Reminders resumed.'); return; }
@@ -435,6 +460,14 @@ root.addEventListener('change', async (e) => {
 
 root.addEventListener('input', (e) => {
   const el = e.target;
+  if (el.matches('[data-audit-q]')) {
+    const key = el.dataset.auditQ;
+    ui.audit[key] = { ...(ui.audit[key] || { cat: '', actor: '', q: '' }), q: el.value };
+    const pos = el.selectionStart; render();
+    const again = root.querySelector(`[data-audit-q="${CSS.escape(key)}"]`);
+    if (again) { again.focus(); again.setSelectionRange(pos, pos); }
+    return;
+  }
   const sel = el.matches('input[data-filter="q"]') ? 'input[data-filter="q"]' : el.matches('input[data-lead-filter="q"]') ? 'input[data-lead-filter="q"]' : null;
   if (!sel) return;
   if (sel.includes('data-lead-filter')) ui.leadFilters.q = el.value; else ui.filters.q = el.value;

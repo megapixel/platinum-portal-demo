@@ -7,6 +7,7 @@ import { can } from '../auth/permissions.js';
 import { api } from '../api/index.js';
 import { metrics } from '../metrics.js';
 import { ui } from './common.js';
+import { auditTimeline } from './audit.js';
 
 // ---------- public enquiry form ----------
 export function viewApply(query) {
@@ -129,7 +130,6 @@ export function viewLead(leadId) {
   const consultants = db.users.filter((x) => x.role === 'CONSULTANT');
   const pkg = db.packages.find((p) => p.id === l.packageId);
   const intro = db.introducers.find((i) => i.id === l.introducerId);
-  const activity = db.audit.filter((a) => a.leadId === l.id).sort((a, b) => b.at.localeCompare(a.at));
   const notes = l.notes.slice().sort((a, b) => b.at.localeCompare(a.at));
   const converted = l.convertedCaseId && store.case(l.convertedCaseId);
   const canReassign = can(u, 'case:reassign');
@@ -182,12 +182,7 @@ export function viewLead(leadId) {
             ${notes.map((n) => `<li><b>${esc(n.kind.toLowerCase())}</b> ${esc(n.text)}<br><span class="muted">${fmtDateTime(n.at)} by ${esc((store.user(n.byId) || {}).name || '-')}</span></li>`).join('') || '<li class="muted">No notes yet.</li>'}
           </ul>
         </section>
-        <section class="card">
-          <h2>Audit trail</h2>
-          <ul class="history">
-            ${activity.map((a) => `<li><b>${esc(a.action.replace(/_/g, ' ').toLowerCase())}</b> ${esc(a.detail)}<br><span class="muted">${fmtDateTime(a.at)} by ${esc((store.user(a.actorId) || {}).name || 'public form')}</span></li>`).join('')}
-          </ul>
-        </section>
+        ${can(u, 'audit:view') ? `<section class="card"><h2>Audit timeline</h2>${auditTimeline('lead:' + l.id, api.auditFor({ leadId: l.id }))}</section>` : ''}
       </div>
     </div>
   </main>`;
