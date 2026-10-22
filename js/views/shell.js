@@ -25,6 +25,7 @@ function navItems(u) {
   items.push(['myday', '#/staff/my-day', 'My day', can(u, 'lead:view')]);
   items.push(['review', '#/staff/review', 'Review queue', can(u, 'item:review')]);
   items.push(['leads', '#/staff/leads', 'Pipeline', can(u, 'lead:view')]);
+  items.push(['invoices', '#/staff/invoices', 'Invoices', can(u, 'invoice:view')]);
   items.push(['outbox', '#/staff/outbox', 'Outbox', can(u, 'outbox:view')]);
   items.push(['templates', '#/staff/templates', 'Templates', can(u, 'template:manage')]);
   items.push(['admin', '#/staff/admin', 'Admin', can(u, 'config:manage') || can(u, 'user:manage') || can(u, 'messagetemplate:manage')]);

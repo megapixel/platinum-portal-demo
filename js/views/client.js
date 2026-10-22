@@ -41,6 +41,7 @@ export function viewPortal(query) {
   const contacts = store.contactUsers(client);
 
   return `<main class="page narrow stack">
+    <nav class="subtabs"><a class="active" href="#/portal?case=${encodeURIComponent(c.id)}">Application</a><a href="#/portal/billing?case=${encodeURIComponent(c.id)}">Billing</a></nav>
     <section class="card hero">
       <p class="muted small">Case ${esc(c.id)} &middot; ${esc(CASE_TYPES[c.caseType].label)}${c.attempt > 1 ? ` &middot; Attempt ${c.attempt}` : ''}</p>
       <h1>Hi ${esc(firstName(u.name))}</h1>

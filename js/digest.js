@@ -3,6 +3,7 @@
 import { db, store } from './store.js';
 import { emailer } from './providers/email.js';
 import { metrics } from './metrics.js';
+import { invoiceStatus } from './invoicing.js';
 import { staffScopeOk } from './auth/permissions.js';
 import { startOfDay, fmtDate } from './utils.js';
 import { baseUrl } from './auth/session.js';
@@ -19,7 +20,7 @@ export function digestFor(user) {
   const today = startOfDay(new Date());
   const followUps = db.leads.filter((l) => !['WON', 'LOST'].includes(l.stage) && l.nextFollowUp && startOfDay(l.nextFollowUp) <= today
     && (user.role === 'CONSULTANT' ? l.assignedStaffId === user.id : true));
-  const overdueInvoices = db.invoices.filter((i) => caseIds.has(i.caseId) && i.status === 'OVERDUE');
+  const overdueInvoices = db.invoices.filter((i) => caseIds.has(i.caseId) && invoiceStatus(i, store.case(i.caseId), db.config) === 'OVERDUE');
   return { toReview, overdueCases, followUps, overdueInvoices };
 }
 

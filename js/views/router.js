@@ -13,6 +13,7 @@ import { viewDashboard, viewCase, viewOutbox, viewTemplates, viewNewCase, reject
 import { viewApply, viewLeads, viewLead, viewMyDay, convertModal, lostModal } from './leads.js';
 import { viewAdmin } from './admin.js';
 import { viewReviewQueue, viewPack } from './consolidation.js';
+import { viewBilling, viewInvoices } from './billing.js';
 
 function uploadModal(m) {
   const item = store.item(m.itemId);
@@ -87,6 +88,7 @@ export function render() {
         return go(query.case && store.case(query.case) ? `/staff/case/${query.case}` : STAFF_HOME, true);
       }
       if (path === '/portal/help') return paint(clientShell(viewHelp()));
+      if (path === '/portal/billing') return paint(clientShell(viewBilling(query)));
       if (path === '/portal/info') {
         const c = query.case ? api.getCase(query.case) : api.myCases()[0];
         if (!c) throw new HttpError(404, 'No application found for your account yet.');
@@ -104,6 +106,7 @@ export function render() {
         if (parts[4] === 'info') return paint(staffShell('dash', viewInfoForm(caseId, true)));
         return paint(staffShell('dash', viewCase(caseId)));
       }
+      if (path === '/staff/invoices') { requirePerm('invoice:view'); return paint(staffShell('invoices', viewInvoices())); }
       if (path === '/staff/review') { requirePerm('item:review'); return paint(staffShell('review', viewReviewQueue())); }
       if (path === '/staff/outbox') { requirePerm('outbox:view'); return paint(staffShell('outbox', viewOutbox())); }
       if (path === '/staff/new') return paint(staffShell('dash', viewNewCase()));

@@ -3,6 +3,7 @@ import { nowIso } from '../utils.js';
 import { seedTemplates, seedFormDefs } from './checklists.js';
 import { SEED_STAFF, SEED_CLIENTS, seedClient } from './core.js';
 import { seedSales } from './sales.js';
+import { seedInvoices } from './invoices.js';
 import { DEFAULT_MESSAGE_TEMPLATES } from '../messagetemplates.js';
 
 export const DB_VERSION = 2;
@@ -17,6 +18,7 @@ export function defaultConfig() {
       { label: 'Deposit', pct: 50, due: 'ON_ISSUE' },
       { label: 'Balance', pct: 50, due: 'BEFORE_SUBMISSION' },
     ],
+    paymentTermsDays: 14,                                         // deposit due this many days after issue (TBC)
     stageAfterPack: 'DOCUMENTS_COMPLETE',                         // or REVIEW_AND_PREPARATION
     warnUnpaidOnSubmit: true,
     notifyOnAccept: false,                                        // send DOC_ACCEPTED on every accept (noisy, so off)
@@ -44,5 +46,6 @@ export function buildSeed() {
   };
   for (const c of SEED_CLIENTS) seedClient(d, c);
   seedSales(d);
+  seedInvoices(d);
   return d;
 }

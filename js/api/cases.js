@@ -1,7 +1,7 @@
 // api/cases: cases, documents, review, stages. Every call is guarded, mirroring server routes.
 import { db, store } from '../store.js';
 import { STAGES, STAGE_INDEX, CASE_TYPES, ACCEPTED_MIME, MAX_UPLOAD_BYTES, REJECT_REASON } from '../domain.js';
-import { HttpError, uid, nowIso, startOfDay, fmtDate } from '../utils.js';
+import { HttpError, uid, nowIso, startOfDay, fmtDate, fmtMoney } from '../utils.js';
 import { documentReader, crossCheckName } from '../ai.js';
 import { storage } from '../storage.js';
 import { crmSync } from '../providers/crm.js';
@@ -13,6 +13,7 @@ import { notifyClient } from '../notify.js';
 import { portalLinkFor, sendCaseReminder, runWeeklyReminders } from '../reminders.js';
 import { nextCaseNo } from './numbering.js';
 import { alertStaff } from '../digest.js';
+import { caseBalance } from './invoices.js';
 
 export function casePeople(c) {
   const client = store.caseClient(c);
@@ -106,16 +107,17 @@ export async function createClientWithCase(spec, actor) {
 
 
 /** Moves a case to a stage: history, audit, client message, CRM hook. Callers check permissions and save. */
-export async function changeStage(c, stage, actor) {
+export async function changeStage(c, stage, actor, note) {
   if (!(stage in STAGE_INDEX)) throw new HttpError(400, 'Invalid stage.');
   if (c.stage === stage) return;
   const before = c.stage;
   c.stage = stage;
   db.stageHistory.push({ id: uid('sh'), caseId: c.id, stage, changedAt: nowIso(), changedById: actor.id });
-  store.audit(c.id, 'STAGE_CHANGED', STAGES[STAGE_INDEX[stage]].label, actor.id, null, { before: { stage: before }, after: { stage } });
+  store.audit(c.id, 'STAGE_CHANGED', STAGES[STAGE_INDEX[stage]].label + (note ? ` (${note})` : ''), actor.id, null, { before: { stage: before }, after: { stage } });
+  const submitted = stage === 'SUBMITTED';
   await notifyClient(store.caseClient(c), {
-    caseId: c.id, trigger: 'STAGE_CHANGED', templateKey: 'STAGE_CHANGED', link: portalLinkFor(c),
-    vars: { caseNo: c.id, stage: STAGES[STAGE_INDEX[stage]].label },
+    caseId: c.id, trigger: submitted ? 'APPLICATION_SUBMITTED' : 'STAGE_CHANGED', templateKey: submitted ? 'APPLICATION_SUBMITTED' : 'STAGE_CHANGED', link: portalLinkFor(c),
+    vars: { caseNo: c.id, stage: STAGES[STAGE_INDEX[stage]].label, caseType: CASE_TYPES[c.caseType].inMessage, date: fmtDate(nowIso()) },
   });
   crmSync.onStageChanged(c.id, stage);
 }
@@ -242,9 +244,25 @@ export const caseApi = {
     crmSync.onItemStatusChanged(item.caseId, item.id, decision);
   },
 
-  async setStage(caseId, stage) {
+  /**
+   * Moving to Submitted with an unpaid balance warns (config.warnUnpaidOnSubmit) but never blocks:
+   * the first call throws a 409 with `unpaidBalance`; the caller confirms and passes acknowledgeUnpaid.
+   */
+  async setStage(caseId, stage, opts) {
     const { user: staff, caseRec: c } = requireCaseAccess(caseId, 'case:stage');
-    await changeStage(c, stage, staff);
+    let note = '';
+    if (stage === 'SUBMITTED' && c.stage !== 'SUBMITTED' && can(staff, 'invoice:view')) {
+      const bal = caseBalance(caseId);
+      if (db.config.warnUnpaidOnSubmit && bal > 0) {
+        if (!(opts && opts.acknowledgeUnpaid)) {
+          const err = new HttpError(409, `This case has an unpaid balance of ${fmtMoney(bal)}.`);
+          err.unpaidBalance = bal;
+          throw err;
+        }
+        note = `submitted with unpaid balance ${fmtMoney(bal)}`;
+      }
+    }
+    await changeStage(c, stage, staff, note);
     store.save();
   },
 

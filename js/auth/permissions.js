@@ -22,6 +22,7 @@ export const PERMISSIONS = [
   ['introducer:manage', 'Manage introducers, sources and packages', 'Sales'],
   ['invoice:view', 'View invoices and payments', 'Payments'],
   ['invoice:manage', 'Issue invoices and record payments', 'Payments'],
+  ['invoice:pay', 'Pay an invoice online (clients)', 'Payments'],
   ['letter:generate', 'Generate letters on a case', 'Letters'],
   ['letter:template', 'Manage letter templates', 'Letters'],
   ['template:manage', 'Edit checklist and onboarding form templates', 'Admin'],
@@ -31,7 +32,7 @@ export const PERMISSIONS = [
   ['config:manage', 'Change system settings and integrations', 'Admin'],
   ['demo:reset', 'Reset the demo data', 'Admin'],
 ];
-const ALL = PERMISSIONS.map((p) => p[0]);
+const ALL = PERMISSIONS.map((p) => p[0]).filter((p) => p !== 'invoice:pay');
 
 export const MATRIX = {
   ADMIN: ALL,
@@ -48,7 +49,7 @@ export const MATRIX = {
     'case:view', 'item:upload', 'item:review', 'item:manage', 'onboarding:edit', 'pack:generate', 'outbox:view',
     'lead:view', 'invoice:view', 'letter:generate', 'audit:view',
   ],
-  CLIENT: ['case:view', 'item:upload', 'onboarding:edit'],
+  CLIENT: ['case:view', 'item:upload', 'onboarding:edit', 'invoice:view', 'invoice:pay'],
 };
 
 /** Roles whose case and lead access is limited to records assigned to them. */

@@ -11,6 +11,7 @@ import { ui, chip, ragDot, linkify, groupByPerson, uploadedByLabel } from './com
 import { casePeople } from '../api/cases.js';
 import { DAY_NAMES, effectiveRule } from '../reminders.js';
 import { ruleFields } from './admin.js';
+import { paymentChip, invoiceCard } from './billing.js';
 import { storage } from '../storage.js';
 
 const DAY = 86400000;
@@ -67,7 +68,7 @@ export function viewDashboard() {
       </div>
       <div class="table-wrap" style="margin-top:12px">
         <table class="data">
-          <thead><tr><th></th><th>Client</th><th>Case type</th><th>Stage</th><th>% complete</th><th>Outstanding</th><th>Days left</th><th>Last activity</th><th>Assigned</th></tr></thead>
+          <thead><tr><th></th><th>Client</th><th>Case type</th><th>Stage</th><th>% complete</th><th>Outstanding</th><th>Days left</th><th>Payment</th><th>Last activity</th><th>Assigned</th></tr></thead>
           <tbody>
           ${visible.map((r) => `<tr data-action="openCase" data-case="${esc(r.c.id)}">
             <td>${ragDot(r.rag)}</td>
@@ -77,9 +78,10 @@ export function viewDashboard() {
             <td><span class="mini-bar"><i style="width:${r.comp.pct}%"></i></span>${r.comp.pct}%</td>
             <td>${r.out ? `<b>${r.out}</b>` : '<span class="muted">0</span>'}</td>
             <td>${r.out === 0 ? '<span class="muted">-</span>' : r.left < 0 ? `<b style="color:var(--red)">${Math.abs(r.left)} overdue</b>` : r.left}</td>
+            <td>${can(u, 'invoice:view') ? paymentChip(r.c.id) : ''}</td>
             <td class="small">${relTime(r.last)}</td>
             <td class="small">${esc(r.staff ? r.staff.name : '-')}</td>
-          </tr>`).join('') || '<tr><td colspan="9" class="muted" style="text-align:center;padding:24px">No clients match these filters.</td></tr>'}
+          </tr>`).join('') || '<tr><td colspan="10" class="muted" style="text-align:center;padding:24px">No clients match these filters.</td></tr>'}
           </tbody>
         </table>
       </div>
@@ -161,7 +163,7 @@ export function viewCase(caseId) {
       <div>
         <a href="#/staff" class="small">&larr; Dashboard</a>
         <h1 style="font-size:22px;margin-top:4px">${ragDot(rag)} ${esc(client.name)}</h1>
-        <p class="muted small">${esc(c.id)} &middot; ${esc(CASE_TYPES[c.caseType].label)} &middot; ${esc(rag.reason)}</p>
+        <p class="muted small">${esc(c.id)} &middot; ${esc(CASE_TYPES[c.caseType].label)} &middot; ${esc(rag.reason)} ${can(u, 'invoice:view') ? paymentChip(c.id) : ''}</p>
       </div>
       <div class="row">
         ${can(u, 'pack:generate') ? `<a class="btn" href="#/staff/case/${encodeURIComponent(c.id)}/pack">Consolidation</a>` : ''}
@@ -202,6 +204,7 @@ export function viewCase(caseId) {
             ${canEditInfo ? `<a class="btn sm" href="#/staff/case/${encodeURIComponent(c.id)}/info">${prog.pct < 100 ? 'Fill in for client' : 'View or edit'}</a>` : ''}
           </div>
         </section>
+        ${invoiceCard(c)}
         ${can(u, 'message:send') ? reminderCard(c, client) : ''}
         <section class="card">
           <h2>Stage</h2>

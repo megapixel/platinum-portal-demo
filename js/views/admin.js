@@ -39,7 +39,7 @@ function permissionsTab() {
       <thead><tr><th>Permission</th>${STAFF_ROLES.map((r) => `<th>${esc(ROLES[r].label)}</th>`).join('')}</tr></thead>
       <tbody>${groups.map((g) => `<tr class="group-row"><td colspan="${STAFF_ROLES.length + 1}">${esc(g.name)}</td></tr>
         ${g.rows.map(([key, label]) => `<tr><td>${esc(label)} <span class="tiny muted mono">${esc(key)}</span></td>
-          ${STAFF_ROLES.map((r) => { const has = MATRIX[r].includes(key); const own = has && (ASSIGNED_ONLY.includes(r) || r === 'CLIENT') && /^(case|lead|item|onboarding)/.test(key); return `<td class="tick">${has ? (own ? '&#10003; <span class="tiny muted">own</span>' : '&#10003;') : '<span class="muted">-</span>'}</td>`; }).join('')}</tr>`).join('')}`).join('')}
+          ${STAFF_ROLES.map((r) => { const has = MATRIX[r].includes(key); const own = has && (ASSIGNED_ONLY.includes(r) || r === 'CLIENT') && /^(case|lead|item|onboarding|invoice)/.test(key); return `<td class="tick">${has ? (own ? '&#10003; <span class="tiny muted">own</span>' : '&#10003;') : '<span class="muted">-</span>'}</td>`; }).join('')}</tr>`).join('')}`).join('')}
       </tbody></table></div>
   </section>`;
 }

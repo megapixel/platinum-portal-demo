@@ -24,6 +24,7 @@ export const ui = {
   queueFilter: 'ALL',
   queueSel: null,
   adminTab: 'permissions',
+  invoiceFilter: '',
   msgTplKey: null,
   msgTplError: '',
 };

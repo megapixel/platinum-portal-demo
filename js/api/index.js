@@ -5,5 +5,6 @@ import { adminApi } from './admin.js';
 import { leadApi } from './leads.js';
 import { consolidationApi } from './consolidation.js';
 import { messagingApi } from './messaging.js';
+import { invoiceApi } from './invoices.js';
 
-export const api = { ...caseApi, ...onboardingApi, ...adminApi, ...leadApi, ...consolidationApi, ...messagingApi };
+export const api = { ...caseApi, ...onboardingApi, ...adminApi, ...leadApi, ...consolidationApi, ...messagingApi, ...invoiceApi };

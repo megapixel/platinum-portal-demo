@@ -11,6 +11,10 @@ import { randomCaseSpec } from './staff.js';
 import { filteredLeads } from './leads.js';
 import { queueRows } from './consolidation.js';
 import { buildPack } from '../pack.js';
+import { buildInvoicePdf } from '../invoicepdf.js';
+import { accountingExport } from '../providers/accounting.js';
+import { statusOf } from '../api/invoices.js';
+import { paidAmount, balanceOf } from '../invoicing.js';
 
 function handleError(e, modalTarget) {
   const msg = e instanceof HttpError ? e.message : 'Something went wrong. Please try again.';
@@ -52,9 +56,42 @@ function nextQueueSelection(itemId) {
   const next = rows[i + 1] || rows[i - 1];
   return next ? next.item.id : null;
 }
+/** Stage change that warns, but never blocks, when moving to Submitted with an unpaid balance. */
+async function setStageConfirmed(caseId, stage) {
+  try { await api.setStage(caseId, stage); return true; } catch (e) {
+    if (e.unpaidBalance == null) throw e;
+    if (!window.confirm(`${e.message} Move to Submitted anyway?`)) return false;
+    await api.setStage(caseId, stage, { acknowledgeUnpaid: true });
+    return true;
+  }
+}
 const onQueue = () => parseHash().path === '/staff/review';
 
 const actions = {
+  async payNow(el) {
+    try { await api.payNow(el.dataset.invoice); render(); toast('Payment received. Thank you.'); } catch (e) { handleError(e); }
+  },
+  async invoicePdf(el) {
+    try {
+      const inv = db.invoices.find((i) => i.id === el.dataset.invoice);
+      const c = store.case(inv.caseId);
+      downloadBlob(`${inv.number}.pdf`, await buildInvoicePdf(inv, c, store.caseClient(c), db.config));
+    } catch (e) { handleError(e); }
+  },
+  async issueInvoice(el) { try { await api.issueInvoice(el.dataset.invoice); render(); toast('Invoice issued and the client was notified.'); } catch (e) { handleError(e); } },
+  voidInvoice(el) {
+    const reason = window.prompt('Reason for voiding this invoice?');
+    if (reason == null) return;
+    try { api.voidInvoice(el.dataset.invoice, reason); render(); toast('Invoice voided.'); } catch (e) { handleError(e); }
+  },
+  exportInvoicesCsv() {
+    const rows = api.listInvoices().map((inv) => ({ invoice: inv, status: statusOf(inv), paid: paidAmount(inv), balance: balanceOf(inv), clientName: store.caseClient(store.case(inv.caseId)).name }));
+    csvDownload('invoices.csv', accountingExport.invoicesCsv(rows));
+  },
+  exportPaymentsCsv() {
+    const rows = api.listInvoices().flatMap((inv) => inv.payments.map((payment) => ({ invoice: inv, payment, clientName: store.caseClient(store.case(inv.caseId)).name })));
+    csvDownload('payments.csv', accountingExport.paymentsCsv(rows));
+  },
   async simulateSchedule() {
     const r = db.config.reminder;
     const at = new Date(); at.setHours(r.hour, 0, 0, 0);
@@ -136,7 +173,7 @@ const actions = {
     } catch (e) { handleError(e); }
   },
   async setStageQuick(el) {
-    try { await api.setStage(el.dataset.case, el.dataset.stage); render(); toast('Stage updated.'); } catch (e) { handleError(e); }
+    try { const ok = await setStageConfirmed(el.dataset.case, el.dataset.stage); render(); if (ok) toast('Stage updated.'); } catch (e) { handleError(e); }
   },
   async runWeekly() {
     try {
@@ -220,6 +257,12 @@ root.addEventListener('submit', async (e) => {
     if (f.id === 'magicRequestForm') {
       await requestMagicLink(v('email'));
       ui.magicSent = true; render();
+    }
+    if (f.classList.contains('pay-form')) {
+      try { await api.recordPayment(f.dataset.invoice, formValues(f)); render(); toast('Payment recorded and the client was sent a receipt message.'); } catch (err) { handleError(err); }
+    }
+    if (f.id === 'createInvoiceForm') {
+      try { api.createInvoice(f.dataset.case, v('packageId')); render(); toast('Draft invoice created. Issue it when ready.'); } catch (err) { handleError(err); }
     }
     if (f.id === 'reminderRuleForm') {
       try { api.saveReminderRules({ day: Number(v('day')), hour: Number(v('hour')), frequency: v('frequency') }); render(); toast('Reminder rule saved.'); } catch (err) { handleError(err); }
@@ -353,7 +396,7 @@ root.addEventListener('change', async (e) => {
     }
     if (el.matches('select[data-filter]')) { ui.filters[el.dataset.filter] = el.value; render(); return; }
     if (el.matches('[data-stage-select]')) {
-      await api.setStage(el.dataset.stageSelect, el.value); render(); toast('Stage updated. The client sees it straight away.');
+      const ok = await setStageConfirmed(el.dataset.stageSelect, el.value); render(); if (ok) toast('Stage updated. The client sees it straight away.');
       return;
     }
     if (el.matches('[data-tpl-name]')) { api.updateTemplate(el.dataset.tplName, { name: el.value.trim() || 'Untitled template' }); render(); return; }
@@ -368,6 +411,7 @@ root.addEventListener('change', async (e) => {
       render();
       return;
     }
+    if (el.matches('[data-invoice-filter]')) { ui.invoiceFilter = el.value; render(); return; }
     if (el.matches('[data-msgtpl-select]')) { ui.msgTplKey = el.value; ui.msgTplError = ''; render(); return; }
     if (el.matches('[data-case-pause]')) { api.setCaseReminder(el.dataset.casePause, { paused: el.checked }); render(); toast(el.checked ? 'Reminders paused for this case.' : 'Reminders resumed.'); return; }
     if (el.matches('[data-deadline]')) { api.setItemDeadline(el.dataset.deadline, el.value); render(); toast('Deadline saved.'); return; }
