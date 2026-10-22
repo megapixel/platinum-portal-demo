@@ -650,3 +650,8 @@ label.row input[type=checkbox] { margin-top: 3px; flex: 0 0 auto; }
 .timeline li.tl-access::before, .timeline li.tl-letter::before { background: var(--red); }
 .tl-changes { display: flex; flex-wrap: wrap; gap: 4px; margin: 3px 0; }
 .tl-changes span { background: var(--grey-bg); border-radius: 6px; padding: 1px 8px; font-size: 12px; font-family: ui-monospace, Menlo, monospace; }
+
+/* letters */
+.letter-grid { display: grid; gap: 12px; grid-template-columns: 1fr; }
+@media (min-width: 900px) { .letter-grid { grid-template-columns: 1fr 1fr; } }
+.letter-preview { white-space: pre-wrap; background: #fff; border: 1px solid var(--border); border-radius: 8px; padding: 18px; font-family: Georgia, serif; font-size: 14px; line-height: 1.6; min-height: 240px; box-shadow: var(--shadow); }

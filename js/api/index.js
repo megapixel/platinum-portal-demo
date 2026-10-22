@@ -7,5 +7,7 @@ import { consolidationApi } from './consolidation.js';
 import { messagingApi } from './messaging.js';
 import { invoiceApi } from './invoices.js';
 import { outcomeApi } from './outcome.js';
+import { letterApi } from './letters.js';
+import { integrationApi } from './integrations.js';
 
-export const api = { ...caseApi, ...onboardingApi, ...adminApi, ...leadApi, ...consolidationApi, ...messagingApi, ...invoiceApi, ...outcomeApi };
+export const api = { ...caseApi, ...onboardingApi, ...adminApi, ...leadApi, ...consolidationApi, ...messagingApi, ...invoiceApi, ...outcomeApi, ...letterApi, ...integrationApi };

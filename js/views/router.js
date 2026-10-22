@@ -14,6 +14,7 @@ import { viewApply, viewLeads, viewLead, viewMyDay, convertModal, lostModal } fr
 import { viewAdmin } from './admin.js';
 import { viewReviewQueue, viewPack } from './consolidation.js';
 import { viewBilling, viewInvoices } from './billing.js';
+import { viewLetterTemplates, viewLetterEditor } from './letters.js';
 
 function uploadModal(m) {
   const item = store.item(m.itemId);
@@ -102,10 +103,12 @@ export function render() {
       if (path.startsWith('/staff/case/')) {
         const parts = path.split('/');
         const caseId = decodeURIComponent(parts[3]);
+        if (parts[4] === 'letter') { requirePerm('letter:generate'); return paint(staffShell('dash', viewLetterEditor(caseId, query))); }
         if (parts[4] === 'pack') return paint(staffShell('review', viewPack(caseId)));
         if (parts[4] === 'info') return paint(staffShell('dash', viewInfoForm(caseId, true)));
         return paint(staffShell('dash', viewCase(caseId)));
       }
+      if (path === '/staff/letters') { requirePerm('letter:template'); return paint(staffShell('letters', viewLetterTemplates())); }
       if (path === '/staff/invoices') { requirePerm('invoice:view'); return paint(staffShell('invoices', viewInvoices())); }
       if (path === '/staff/review') { requirePerm('item:review'); return paint(staffShell('review', viewReviewQueue())); }
       if (path === '/staff/outbox') { requirePerm('outbox:view'); return paint(staffShell('outbox', viewOutbox())); }

@@ -2,7 +2,7 @@
 import { db } from '../store.js';
 import { TEMPLATE_FIELDS, SAMPLE_VARS, fillTemplate } from '../messagetemplates.js';
 import { FREQUENCY_DAYS, DAY_NAMES } from '../reminders.js';
-import { ROLES, CASE_TYPES } from '../domain.js';
+import { ROLES, CASE_TYPES, STAGES } from '../domain.js';
 import { esc, fmtMoney, fmtDateTime } from '../utils.js';
 import { auth } from '../auth/session.js';
 import { can, MATRIX, PERMISSIONS, ASSIGNED_ONLY } from '../auth/permissions.js';
@@ -15,7 +15,7 @@ const STAFF_ROLES = ['ADMIN', 'OPS_MANAGER', 'CONSULTANT', 'DOCUMENT_SPECIALIST'
 
 function tabs(u) {
   const t = [['permissions', 'Permissions', can(u, 'config:manage')], ['users', 'Users', can(u, 'user:manage')],
-    ['messaging', 'Messaging', can(u, 'messagetemplate:manage')], ['catalogue', 'Sales catalogue', can(u, 'introducer:manage')], ['audit', 'Audit', can(u, 'config:manage')], ['settings', 'Settings', can(u, 'config:manage')]];
+    ['messaging', 'Messaging', can(u, 'messagetemplate:manage')], ['catalogue', 'Sales catalogue', can(u, 'introducer:manage')], ['integrations', 'Integrations', can(u, 'config:manage')], ['audit', 'Audit', can(u, 'config:manage')], ['settings', 'Settings', can(u, 'config:manage')]];
   return t.filter((x) => x[2]);
 }
 
@@ -23,7 +23,7 @@ export function viewAdmin() {
   const u = auth.currentUser();
   const available = tabs(u);
   if (!available.some((t) => t[0] === ui.adminTab)) ui.adminTab = available[0][0];
-  const body = { permissions: permissionsTab, users: usersTab, messaging: messagingTab, audit: auditTab, catalogue: catalogueTab, settings: settingsTab }[ui.adminTab]();
+  const body = { permissions: permissionsTab, users: usersTab, messaging: messagingTab, integrations: integrationsTab, audit: auditTab, catalogue: catalogueTab, settings: settingsTab }[ui.adminTab]();
   return `<main class="page wide stack">
     <div><h1 style="font-size:22px">Admin</h1><p class="muted small">Access rules, users, the sales catalogue and settings the client has not confirmed yet.</p></div>
     <div class="tpl-tabs">${available.map(([k, l]) => `<button class="btn sm ${ui.adminTab === k ? 'active' : ''}" data-action="adminTab" data-tab="${k}">${l}</button>`).join('')}</div>
@@ -101,6 +101,14 @@ function settingsTab() {
     <label class="field"><span>Stage after generating a submission pack</span><select class="input" data-config="stageAfterPack"><option value="DOCUMENTS_COMPLETE" ${c.stageAfterPack === 'DOCUMENTS_COMPLETE' ? 'selected' : ''}>Documents complete</option><option value="REVIEW_AND_PREPARATION" ${c.stageAfterPack === 'REVIEW_AND_PREPARATION' ? 'selected' : ''}>Review and preparation</option></select></label>
     <label class="row small"><input type="checkbox" data-config="warnUnpaidOnSubmit" data-type="bool" ${c.warnUnpaidOnSubmit ? 'checked' : ''}> Warn (not block) when moving to Submitted with an unpaid balance</label>
     <label class="row small"><input type="checkbox" data-config="notifyOnAccept" data-type="bool" ${c.notifyOnAccept ? 'checked' : ''}> Message the client each time a document is accepted</label>
+    <label class="field"><span>Re-application rule</span><select class="input" data-config="reapplicationRule"><option value="SAME_CASE_NEW_ATTEMPT" ${c.reapplicationRule === 'SAME_CASE_NEW_ATTEMPT' ? 'selected' : ''}>Same case, new attempt (default)</option><option value="NEW_CASE" ${c.reapplicationRule === 'NEW_CASE' ? 'selected' : ''}>New linked case</option></select></label>
+    <label class="row small"><input type="checkbox" data-config="letterBlankDownloadDefault" data-type="bool" ${c.letterBlankDownloadDefault ? 'checked' : ''}> New letter templates start with "client may download a blank copy" switched on</label>
+  </section>
+  <section class="card stack"><h2 style="margin:0">Data retention</h2>
+    <p class="small muted">Months to keep a case's documents after it reaches each status. Leave blank to keep. To be agreed with the client (TBC). The prototype records the setting but does not delete anything: production would run a scheduled deletion job and note it in the PDPA notice.</p>
+    <div class="tpl-grid" style="grid-template-columns:repeat(2,1fr)">
+      ${[...STAGES.map((s) => [s.key, s.label]), ['LOST_LEAD', 'Lost lead']].map(([k, l]) => `<label class="field"><span>${esc(l)}</span><input class="input sm" type="number" min="0" max="240" data-retention="${esc(k)}" value="${c.retentionMonths && c.retentionMonths[k] != null ? esc(c.retentionMonths[k]) : ''}" placeholder="Keep"></label>`).join('')}
+    </div>
   </section>`;
 }
 
@@ -149,4 +157,22 @@ function auditTab() {
   return `<section class="card"><h2>Audit timeline</h2>
     <p class="small muted" style="margin-bottom:8px">Everything recorded across the system, including permission changes and template edits.</p>
     ${auditTimeline('all', api.auditFor({}), { showRef: true, limit: 300 })}</section>`;
+}
+
+const SAMPLE_CSV = 'name,email,phone,nationality,interest,source\nAisha Rahman,aisha.rahman@mail.example,+65 9333 1001,Malaysian,PR,Old CRM\nBen Ong,ben.ong@mail.example,+65 9333 1002,Singaporean PR,Citizenship,Old CRM\nChitra Iyer,chitra.iyer@mail.example,+65 9333 1003,Indian,PR,Old CRM';
+
+function integrationsTab() {
+  return `<section class="card stack"><div class="row between"><h2 style="margin:0">CRM sync</h2><span class="chip grey">Not connected</span></div>
+    <p class="small muted">CRM sync: not connected (CRM platform TBC). Once the platform is confirmed, stage and document changes push to it, and new leads pull in, so the generic Sunday blast can be retired. Until then you can try a mock import of leads from a CSV exported from the old CRM.</p>
+    <label class="field"><span>Leads CSV (columns: name, email, phone, nationality, interest, source)</span><textarea class="input tall mono" data-crm-csv placeholder="name,email,phone,nationality,interest,source">${esc(ui.adminImport)}</textarea></label>
+    <div class="row"><label class="btn sm">Choose a CSV file<input class="hidden-input" type="file" accept=".csv,text/csv" data-crm-file></label>
+      <button class="btn sm" data-action="crmSample">Load sample CSV</button><button class="btn sm primary" data-action="crmImport">Import leads</button></div>
+  </section>
+  <section class="card stack"><div class="row between"><h2 style="margin:0">Google Drive</h2><span class="chip grey">Mock provider</span></div>
+    <p class="small muted">Each case has a "Legacy Google Drive folder link" field on its case page, and a mock <b>Import from Drive</b> that copies sample files into matching checklist items.</p>
+    <p class="small muted">Two options for the real folders, to decide with the client: <b>migrate</b> the files into portal storage and retire the folders, or <b>sync metadata</b> and keep the files in Drive with links stored here. See ARCHITECTURE.md.</p>
+  </section>
+  <section class="card stack"><h2 style="margin:0">Other providers</h2>
+    <ul class="small" style="margin-left:18px"><li>WhatsApp: mock provider (WhatsApp Business Cloud API stub)</li><li>Email: mock provider (SMTP stub)</li><li>Payments: mock provider (gateway stub)</li><li>Accounting: CSV export (Xero or QuickBooks stub)</li><li>Document reader: mock (Claude vision on the server in production)</li></ul>
+  </section>`;
 }

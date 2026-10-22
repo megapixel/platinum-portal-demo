@@ -4,6 +4,7 @@ import { seedTemplates, seedFormDefs } from './checklists.js';
 import { SEED_STAFF, SEED_CLIENTS, seedClient } from './core.js';
 import { seedSales } from './sales.js';
 import { seedInvoices } from './invoices.js';
+import { seedLetterTemplates } from './letters.js';
 import { DEFAULT_MESSAGE_TEMPLATES } from '../messagetemplates.js';
 
 export const DB_VERSION = 2;
@@ -43,6 +44,7 @@ export function buildSeed() {
     cases: [], items: [], documents: [], stageHistory: [], audit: [],
     outbox: [], emails: [], magicLinks: [], reviewTasks: [],
     leads: [], leadSources: [], introducers: [], packages: [], invoices: [],
+    letterTemplates: seedLetterTemplates(), letters: [],
     messageTemplates: DEFAULT_MESSAGE_TEMPLATES.map((t) => ({ ...t })),
   };
   for (const c of SEED_CLIENTS) seedClient(d, c);

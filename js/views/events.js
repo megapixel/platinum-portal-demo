@@ -12,6 +12,7 @@ import { filteredLeads } from './leads.js';
 import { queueRows } from './consolidation.js';
 import { buildPack } from '../pack.js';
 import { buildInvoicePdf } from '../invoicepdf.js';
+import { buildLetterFile, plainText } from '../letters.js';
 import { accountingExport } from '../providers/accounting.js';
 import { statusOf } from '../api/invoices.js';
 import { filterAudit } from './audit.js';
@@ -70,6 +71,44 @@ async function setStageConfirmed(caseId, stage) {
 const onQueue = () => parseHash().path === '/staff/review';
 
 const actions = {
+  selectLetterTpl(el) { ui.letterTplId = el.dataset.id; ui.letterTplError = ''; render(); },
+  newLetterTpl() { ui.letterTplId = 'NEW'; ui.letterTplError = ''; render(); },
+  deleteLetterTpl(el) {
+    if (!window.confirm('Delete this letter template?')) return;
+    try { api.removeLetterTemplate(el.dataset.id); ui.letterTplId = null; render(); toast('Template deleted.'); } catch (e) { handleError(e); }
+  },
+  async downloadLetter(el) {
+    try {
+      const l = api.logLetterDownload(el.dataset.letter, el.dataset.format);
+      const { blob, ext } = await buildLetterFile(l.body, el.dataset.format);
+      downloadBlob(`${l.name.replace(/[^a-z0-9]+/gi, '_')}.${ext}`, blob);
+      render();
+    } catch (e) { handleError(e); }
+  },
+  deleteLetter(el) { if (!window.confirm('Delete this letter?')) return; try { api.deleteLetter(el.dataset.letter); render(); toast('Letter deleted.'); } catch (e) { handleError(e); } },
+  async blankForm(el) {
+    try {
+      const { name, html } = api.downloadBlankForm(el.dataset.case, el.dataset.tpl, el.dataset.format);
+      const { blob, ext } = await buildLetterFile(html, el.dataset.format);
+      downloadBlob(`${name.replace(/[^a-z0-9]+/gi, '_')}_blank.${ext}`, blob);
+    } catch (e) { handleError(e); }
+  },
+  async importDrive(el) {
+    try {
+      const { imported, unmatched } = await api.importFromDrive(el.dataset.case);
+      render(); toast(`Imported ${imported.length} file${imported.length === 1 ? '' : 's'} from Drive${unmatched.length ? `, ${unmatched.length} could not be matched to a checklist item` : ''}.`, 6000);
+    } catch (e) { handleError(e); }
+  },
+  crmSample() { ui.adminImport = 'name,email,phone,nationality,interest,source\nAisha Rahman,aisha.rahman@mail.example,+65 9333 1001,Malaysian,PR,Old CRM\nBen Ong,ben.ong@mail.example,+65 9333 1002,Indonesian,Citizenship,Old CRM\nChitra Iyer,chitra.iyer@mail.example,+65 9333 1003,Indian,PR,Old CRM'; render(); },
+  crmImport() {
+    try {
+      const ta = root.querySelector('[data-crm-csv]');
+      ui.adminImport = ta.value;
+      const { added, skipped } = api.importLeadsCsv(ta.value);
+      ui.adminImport = ''; render();
+      toast(`${added} lead${added === 1 ? '' : 's'} imported into New${skipped ? `, ${skipped} skipped (missing or duplicate email)` : ''}.`, 6000);
+    } catch (e) { handleError(e); }
+  },
   async reapply(el) {
     const rule = db.config.reapplicationRule;
     if (!window.confirm(rule === 'NEW_CASE' ? 'Open a new linked case for the re-application? Accepted documents that have not expired are copied across.' : 'Continue this case as a new attempt? Accepted documents that have not expired are kept, and the rest go back to Pending.')) return;
@@ -275,6 +314,22 @@ root.addEventListener('submit', async (e) => {
       await requestMagicLink(v('email'));
       ui.magicSent = true; render();
     }
+    if (f.id === 'letterTemplateForm') {
+      try {
+        const t = api.saveLetterTemplate({ id: f.dataset.id || undefined, name: v('name'), kind: v('kind'), body: v('body'), clientMayDownloadBlank: f.elements.namedItem('clientMayDownloadBlank').checked });
+        ui.letterTplId = t.id; ui.letterTplError = ''; render(); toast('Template saved.');
+      } catch (err) { ui.letterTplError = err instanceof HttpError ? err.message : 'Could not save.'; render(); }
+    }
+    if (f.id === 'letterForm') {
+      try {
+        const l = api.saveLetter(f.dataset.case, { letterId: f.dataset.letter || undefined, templateId: f.dataset.template, name: v('name'), body: v('body') });
+        ui.letterError = ''; go('/staff/case/' + encodeURIComponent(f.dataset.case)); toast(`Letter attached to the case as an internal document (v${l.version}).`, 5000);
+      } catch (err) { ui.letterError = err instanceof HttpError ? err.message : 'Could not save.'; render(); }
+    }
+    if (f.dataset.letterNew) { go(`/staff/case/${encodeURIComponent(f.dataset.letterNew)}/letter?tpl=${encodeURIComponent(v('tpl'))}`); }
+    if (f.id === 'driveForm') {
+      try { api.setLegacyDriveUrl(f.dataset.case, v('url')); render(); toast('Drive link saved.'); } catch (err) { handleError(err); }
+    }
     if (f.id === 'outcomeForm') {
       try {
         const vals = formValues(f);
@@ -435,6 +490,19 @@ root.addEventListener('change', async (e) => {
       render();
       return;
     }
+    if (el.matches('[data-letter-file]')) {
+      const file = el.files && el.files[0]; if (!file) return;
+      const text = await file.text();
+      root.querySelector('#letterTemplateForm [name=body]').value = text;
+      if (!root.querySelector('#letterTemplateForm [name=name]').value) root.querySelector('#letterTemplateForm [name=name]').value = file.name.replace(/\.[^.]+$/, '');
+      return;
+    }
+    if (el.matches('[data-crm-file]')) { const file = el.files && el.files[0]; if (file) { ui.adminImport = await file.text(); render(); } return; }
+    if (el.matches('[data-letter-template-switch]')) { go(`/staff/case/${encodeURIComponent(el.dataset.letterTemplateSwitch)}/letter?tpl=${encodeURIComponent(el.value)}`); return; }
+    if (el.matches('[data-retention]')) {
+      const cur = { ...db.config.retentionMonths }; cur[el.dataset.retention] = el.value === '' ? null : Number(el.value);
+      api.updateConfig({ retentionMonths: cur }); toast('Retention setting saved.'); return;
+    }
     if (el.matches('[data-audit-filter]')) { ui.audit[el.dataset.auditFilter] = { ...(ui.audit[el.dataset.auditFilter] || { cat: '', actor: '', q: '' }), [el.dataset.field]: el.value }; render(); return; }
     if (el.matches('[data-invoice-filter]')) { ui.invoiceFilter = el.value; render(); return; }
     if (el.matches('[data-msgtpl-select]')) { ui.msgTplKey = el.value; ui.msgTplError = ''; render(); return; }
@@ -460,6 +528,7 @@ root.addEventListener('change', async (e) => {
 
 root.addEventListener('input', (e) => {
   const el = e.target;
+  if (el.matches('[data-letter-body]')) { const pv = root.querySelector('[data-letter-preview]'); if (pv) pv.textContent = plainText(el.value); return; }
   if (el.matches('[data-audit-q]')) {
     const key = el.dataset.auditQ;
     ui.audit[key] = { ...(ui.audit[key] || { cat: '', actor: '', q: '' }), q: el.value };

@@ -14,6 +14,7 @@ import { ruleFields } from './admin.js';
 import { paymentChip, invoiceCard } from './billing.js';
 import { auditTimeline } from './audit.js';
 import { outcomeCard, attemptsCard } from './outcome.js';
+import { lettersCard, driveCard } from './letters.js';
 import { storage } from '../storage.js';
 
 const DAY = 86400000;
@@ -111,7 +112,7 @@ function specimenPreview(doc, item) {
 }
 
 export function docPreview(doc, item) {
-  if (doc.source === 'seed') return specimenPreview(doc, item);
+  if (doc.source === 'seed' || doc.source === 'drive') return specimenPreview(doc, item);
   const url = storage.url(doc.blobId || doc.id);
   if (!url) return `<p class="muted small" style="padding:16px;text-align:center">File preview not available in this browser session.<br>Production serves files from secure storage through an authenticated route.</p>`;
   if (doc.mimeType === 'application/pdf') return `<iframe src="${esc(url)}" title="${esc(doc.fileName)}"></iframe>`;
@@ -207,6 +208,8 @@ export function viewCase(caseId) {
           </div>
         </section>
         ${outcomeCard(c)}
+        ${lettersCard(c)}
+        ${driveCard(c)}
         ${attemptsCard(c)}
         ${invoiceCard(c)}
         ${can(u, 'message:send') ? reminderCard(c, client) : ''}

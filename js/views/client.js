@@ -8,6 +8,7 @@ import { metrics } from '../metrics.js';
 import { clientResultMessage } from '../ai.js';
 import { formProgress } from '../caselogic.js';
 import { nextReminderDate } from '../reminders.js';
+import { clientFormsCard } from './letters.js';
 import { chip, stepper, ring, groupByPerson, uploadedByLabel } from './common.js';
 
 const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
@@ -122,6 +123,8 @@ export function viewPortal(query) {
         </div>`; }).join('')}
       </div>`).join('')}
     </section>
+
+    ${clientFormsCard(c)}
 
     <section class="card">
       <h2>How we contact you</h2>

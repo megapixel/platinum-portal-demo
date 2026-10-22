@@ -26,6 +26,10 @@ export const ui = {
   adminTab: 'permissions',
   invoiceFilter: '',
   audit: {},
+  letterTplId: null,
+  letterTplError: '',
+  letterError: '',
+  adminImport: '',
   msgTplKey: null,
   msgTplError: '',
 };
@@ -88,7 +92,7 @@ export function uploadedByLabel(doc, getUser) {
   const u = getUser(by.userId);
   const who = u ? u.name : 'unknown';
   const role = { CLIENT: 'client', CONSULTANT: 'consultant', DOCUMENT_SPECIALIST: 'specialist', ADMIN: 'admin', OPS_MANAGER: 'operations' }[by.role] || by.role.toLowerCase();
-  return `${who} (${role}${by.onBehalf ? ', on behalf' : ''})`;
+  return `${who} (${role}${by.onBehalf ? ', on behalf' : ''}${by.via ? `, ${by.via}` : ''})`;
 }
 
 export function downloadBlob(filename, blob) {
