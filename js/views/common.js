@@ -24,6 +24,8 @@ export const ui = {
   queueFilter: 'ALL',
   queueSel: null,
   adminTab: 'permissions',
+  msgTplKey: null,
+  msgTplError: '',
 };
 
 export function parseHash() {

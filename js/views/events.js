@@ -55,6 +55,19 @@ function nextQueueSelection(itemId) {
 const onQueue = () => parseHash().path === '/staff/review';
 
 const actions = {
+  async simulateSchedule() {
+    const r = db.config.reminder;
+    const at = new Date(); at.setHours(r.hour, 0, 0, 0);
+    at.setDate(at.getDate() + ((r.day - at.getDay() + 7) % 7 || 0));
+    try {
+      const { sent } = await api.runScheduledReminders(at);
+      render(); toast(`Scheduler simulated for ${esc(at.toDateString())} ${String(r.hour).padStart(2, '0')}:00. ${sent.length} case${sent.length === 1 ? ' was' : 's were'} due and reminded.`, 6000);
+    } catch (e) { handleError(e); }
+  },
+  async sendDigests() {
+    try { const { sent, skipped } = await api.sendStaffDigests(); ui.outboxTab = 'email'; render(); toast(`${sent} staff digest${sent === 1 ? '' : 's'} sent${skipped ? `, ${skipped} skipped (nothing to report)` : ''}. <a href="#/staff/outbox">Open outbox</a>`, 6000); } catch (e) { handleError(e); }
+  },
+  resetMsgTpl(el) { try { api.resetMessageTemplate(el.dataset.key); ui.msgTplError = ''; render(); toast('Template reset to default.'); } catch (e) { handleError(e); } },
   queueFilter(el) { ui.queueFilter = el.dataset.filter; ui.queueSel = null; render(); },
   queueSelect(el) { ui.queueSel = el.dataset.item; render(); },
   async queueAccept(el) {
@@ -208,6 +221,20 @@ root.addEventListener('submit', async (e) => {
       await requestMagicLink(v('email'));
       ui.magicSent = true; render();
     }
+    if (f.id === 'reminderRuleForm') {
+      try { api.saveReminderRules({ day: Number(v('day')), hour: Number(v('hour')), frequency: v('frequency') }); render(); toast('Reminder rule saved.'); } catch (err) { handleError(err); }
+    }
+    if (f.id === 'msgTemplateForm') {
+      try { api.saveMessageTemplate(f.dataset.key, { channel: v('channel'), subject: v('subject'), body: v('body') }); ui.msgTplError = ''; render(); toast('Template saved.'); }
+      catch (err) { ui.msgTplError = err instanceof HttpError ? err.message : 'Could not save.'; render(); }
+    }
+    if (f.id === 'caseReminderForm') {
+      try {
+        const custom = f.elements.namedItem('custom').checked;
+        api.setCaseReminder(f.dataset.case, { rule: custom ? { day: Number(v('day')), hour: Number(v('hour')), frequency: v('frequency') } : null });
+        render(); toast('Reminder schedule saved for this case.');
+      } catch (err) { handleError(err); }
+    }
     if (f.id === 'rejectForm') {
       try {
         const rejectedId = ui.modal.itemId;
@@ -341,8 +368,10 @@ root.addEventListener('change', async (e) => {
       render();
       return;
     }
+    if (el.matches('[data-msgtpl-select]')) { ui.msgTplKey = el.value; ui.msgTplError = ''; render(); return; }
+    if (el.matches('[data-case-pause]')) { api.setCaseReminder(el.dataset.casePause, { paused: el.checked }); render(); toast(el.checked ? 'Reminders paused for this case.' : 'Reminders resumed.'); return; }
     if (el.matches('[data-deadline]')) { api.setItemDeadline(el.dataset.deadline, el.value); render(); toast('Deadline saved.'); return; }
-    if (el.matches('[data-channel-pref]')) { api.setChannelPref(el.dataset.channelPref, el.value); toast('Preference saved.'); return; }
+    if (el.matches('[data-channel-pref]')) { api.setChannelPref(el.dataset.channelPref, el.value); render(); toast('Preference saved.'); return; }
     if (el.matches('[data-lead-filter]')) { ui.leadFilters[el.dataset.leadFilter] = el.value; if (el.tagName === 'SELECT') render(); return; }
     if (el.matches('[data-lead-stage]')) { moveLeadTo(el.dataset.leadStage, el.value); return; }
     if (el.matches('[data-lead-field]')) {

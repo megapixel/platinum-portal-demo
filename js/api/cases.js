@@ -12,6 +12,7 @@ import { metrics } from '../metrics.js';
 import { notifyClient } from '../notify.js';
 import { portalLinkFor, sendCaseReminder, runWeeklyReminders } from '../reminders.js';
 import { nextCaseNo } from './numbering.js';
+import { alertStaff } from '../digest.js';
 
 export function casePeople(c) {
   const client = store.caseClient(c);
@@ -191,6 +192,9 @@ export const caseApi = {
     fresh.updatedAt = doc.uploadedAt;
     store.audit(caseRec.id, 'UPLOADED', `${fresh.label} (${fresh.personLabel}): ${doc.fileName} (v${doc.version})${onBehalf ? ' on behalf of the client' : ''}`, user.id, fresh.id,
       { before: { status: before }, after: { status: fresh.status, version: doc.version } });
+    if (wasRejected && !onBehalf) {
+      await alertStaff(caseRec, 'STAFF_ALERT', `Re-upload: ${fresh.label}`, `${store.caseClient(caseRec).name} re-uploaded a rejected document: ${fresh.label} (${fresh.personLabel}).`);
+    }
     store.save();
     crmSync.onItemStatusChanged(caseRec.id, fresh.id, fresh.status);
     return { item: fresh, doc };

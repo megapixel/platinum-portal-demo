@@ -615,3 +615,9 @@ label.row input[type=checkbox] { margin-top: 3px; flex: 0 0 auto; }
 .checks .tick { font-weight: 700; width: 18px; text-align: center; }
 .checks li.ok .tick { color: var(--green); }
 .checks li.bad .tick { color: var(--red); }
+
+/* messaging admin */
+.rule-grid { display: grid; gap: 8px; grid-template-columns: 1fr; align-items: end; }
+@media (min-width: 700px) { .rule-grid { grid-template-columns: repeat(3, 1fr) auto; } }
+.input.tall { min-height: 160px; }
+.preview-bubble { max-width: 480px; margin-top: 6px; }

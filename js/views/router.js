@@ -112,7 +112,7 @@ export function render() {
       if (path.startsWith('/staff/lead/')) return paint(staffShell('leads', viewLead(decodeURIComponent(path.split('/')[3]))));
       if (path === '/staff/my-day') { requirePerm('lead:view'); return paint(staffShell('myday', viewMyDay())); }
       if (path === '/staff/admin') {
-        if (!can(user, 'config:manage') && !can(user, 'user:manage')) throw new HttpError(403, 'You do not have permission to open Admin.');
+        if (!can(user, 'config:manage') && !can(user, 'user:manage') && !can(user, 'messagetemplate:manage')) throw new HttpError(403, 'You do not have permission to open Admin.');
         return paint(staffShell('admin', viewAdmin()));
       }
     }

@@ -1,5 +1,7 @@
 // views/admin: permissions matrix, users, sales catalogue (sources, packages, introducers), settings.
 import { db } from '../store.js';
+import { TEMPLATE_FIELDS, SAMPLE_VARS, fillTemplate } from '../messagetemplates.js';
+import { FREQUENCY_DAYS, DAY_NAMES } from '../reminders.js';
 import { ROLES, CASE_TYPES } from '../domain.js';
 import { esc, fmtMoney, fmtDateTime } from '../utils.js';
 import { auth } from '../auth/session.js';
@@ -11,7 +13,7 @@ const STAFF_ROLES = ['ADMIN', 'OPS_MANAGER', 'CONSULTANT', 'DOCUMENT_SPECIALIST'
 
 function tabs(u) {
   const t = [['permissions', 'Permissions', can(u, 'config:manage')], ['users', 'Users', can(u, 'user:manage')],
-    ['catalogue', 'Sales catalogue', can(u, 'introducer:manage')], ['settings', 'Settings', can(u, 'config:manage')]];
+    ['messaging', 'Messaging', can(u, 'messagetemplate:manage')], ['catalogue', 'Sales catalogue', can(u, 'introducer:manage')], ['settings', 'Settings', can(u, 'config:manage')]];
   return t.filter((x) => x[2]);
 }
 
@@ -19,7 +21,7 @@ export function viewAdmin() {
   const u = auth.currentUser();
   const available = tabs(u);
   if (!available.some((t) => t[0] === ui.adminTab)) ui.adminTab = available[0][0];
-  const body = { permissions: permissionsTab, users: usersTab, catalogue: catalogueTab, settings: settingsTab }[ui.adminTab]();
+  const body = { permissions: permissionsTab, users: usersTab, messaging: messagingTab, catalogue: catalogueTab, settings: settingsTab }[ui.adminTab]();
   return `<main class="page wide stack">
     <div><h1 style="font-size:22px">Admin</h1><p class="muted small">Access rules, users, the sales catalogue and settings the client has not confirmed yet.</p></div>
     <div class="tpl-tabs">${available.map(([k, l]) => `<button class="btn sm ${ui.adminTab === k ? 'active' : ''}" data-action="adminTab" data-tab="${k}">${l}</button>`).join('')}</div>
@@ -97,5 +99,46 @@ function settingsTab() {
     <label class="field"><span>Stage after generating a submission pack</span><select class="input" data-config="stageAfterPack"><option value="DOCUMENTS_COMPLETE" ${c.stageAfterPack === 'DOCUMENTS_COMPLETE' ? 'selected' : ''}>Documents complete</option><option value="REVIEW_AND_PREPARATION" ${c.stageAfterPack === 'REVIEW_AND_PREPARATION' ? 'selected' : ''}>Review and preparation</option></select></label>
     <label class="row small"><input type="checkbox" data-config="warnUnpaidOnSubmit" data-type="bool" ${c.warnUnpaidOnSubmit ? 'checked' : ''}> Warn (not block) when moving to Submitted with an unpaid balance</label>
     <label class="row small"><input type="checkbox" data-config="notifyOnAccept" data-type="bool" ${c.notifyOnAccept ? 'checked' : ''}> Message the client each time a document is accepted</label>
+  </section>`;
+}
+
+const CHANNELS = [['WHATSAPP', 'WhatsApp'], ['EMAIL', 'Email'], ['BOTH', 'WhatsApp and email']];
+const HOURS = Array.from({ length: 24 }, (_, h) => h);
+
+/** day / hour / frequency selects. `prefix` keeps the field names apart on pages with two of them. */
+export function ruleFields(rule, prefix = '') {
+  return `<label class="field"><span>Day</span><select class="input sm" name="${prefix}day">${DAY_NAMES.map((d, i) => `<option value="${i}" ${i === rule.day ? 'selected' : ''}>${d}</option>`).join('')}</select></label>
+    <label class="field"><span>Time</span><select class="input sm" name="${prefix}hour">${HOURS.map((h) => `<option value="${h}" ${h === rule.hour ? 'selected' : ''}>${String(h).padStart(2, '0')}:00</option>`).join('')}</select></label>
+    <label class="field"><span>Frequency</span><select class="input sm" name="${prefix}frequency">${Object.keys(FREQUENCY_DAYS).map((f) => `<option value="${f}" ${f === rule.frequency ? 'selected' : ''}>${f.charAt(0) + f.slice(1).toLowerCase()}</option>`).join('')}</select></label>`;
+}
+
+function messagingTab() {
+  const tpls = db.messageTemplates;
+  const t = tpls.find((x) => x.key === ui.msgTplKey) || tpls[0];
+  const fields = TEMPLATE_FIELDS[t.key] || [];
+  const r = db.config.reminder;
+  const preview = fillTemplate(t.body, SAMPLE_VARS);
+  const paused = db.cases.filter((c) => c.remindersPaused).length;
+  const custom = db.cases.filter((c) => c.reminderRule).length;
+  return `<section class="card stack"><h2 style="margin:0">Reminder rules</h2>
+    <p class="small muted">Applies to every case in Collecting documents. Clients with nothing outstanding are skipped. Individual cases can pause or override this on the case page (${paused} paused, ${custom} custom now).</p>
+    <form id="reminderRuleForm" class="rule-grid">${ruleFields(r)}<button class="btn primary" type="submit">Save rule</button></form>
+    <p class="tiny muted">Production: a scheduled function checks this rule every hour and sends only the cases that are due. Here you can simulate it.</p>
+    <div class="row"><button class="btn" data-action="simulateSchedule">Simulate the scheduler for next ${esc(DAY_NAMES[r.day])} ${String(r.hour).padStart(2, '0')}:00</button>
+      <button class="btn" data-action="sendDigests">Send staff digests now</button></div>
+  </section>
+  <section class="card stack"><h2 style="margin:0">Message templates</h2>
+    <label class="field"><span>Template</span><select class="input" data-msgtpl-select>${tpls.map((x) => `<option value="${esc(x.key)}" ${x.key === t.key ? 'selected' : ''}>${esc(x.name)}</option>`).join('')}</select></label>
+    <form id="msgTemplateForm" data-key="${esc(t.key)}" class="stack">
+      <label class="field"><span>Send by</span><select class="input" name="channel">${CHANNELS.map(([v, l]) => `<option value="${v}" ${v === t.channel ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
+      <label class="field"><span>Email subject</span><input class="input" name="subject" value="${esc(t.subject)}" required></label>
+      <label class="field"><span>Message</span><textarea class="input tall" name="body" required>${esc(t.body)}</textarea></label>
+      <div><span class="tiny muted" style="font-weight:600">Merge fields you can use</span>
+        <div class="fields-chips">${fields.map((f) => `<span class="field-chip mono">{{${esc(f)}}}</span>`).join('')}</div></div>
+      ${ui.msgTplError ? `<p class="note red small">${esc(ui.msgTplError)}</p>` : ''}
+      <div class="row"><button class="btn primary" type="submit">Save template</button><button class="btn" type="button" data-action="resetMsgTpl" data-key="${esc(t.key)}">Reset to default</button></div>
+    </form>
+    <div><span class="tiny muted" style="font-weight:600">Preview with sample data</span>
+      <div class="wa-bubble preview-bubble">${esc(preview).replace(/\n/g, '<br>')}</div></div>
   </section>`;
 }

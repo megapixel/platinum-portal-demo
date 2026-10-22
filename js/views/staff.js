@@ -9,6 +9,8 @@ import { metrics } from '../metrics.js';
 import { formProgress } from '../caselogic.js';
 import { ui, chip, ragDot, linkify, groupByPerson, uploadedByLabel } from './common.js';
 import { casePeople } from '../api/cases.js';
+import { DAY_NAMES, effectiveRule } from '../reminders.js';
+import { ruleFields } from './admin.js';
 import { storage } from '../storage.js';
 
 const DAY = 86400000;
@@ -45,7 +47,7 @@ export function viewDashboard() {
       <div><h1 style="font-size:22px">${u.role === 'CONSULTANT' ? 'My clients' : 'Client dashboard'}</h1><p class="muted small">${rows.length} clients &middot; ${new Date().toLocaleDateString('en-SG', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</p></div>
       <div class="row">
         ${can(u, 'case:create') ? '<a class="btn primary" href="#/staff/new">+ New case</a>' : ''}
-        ${can(u, 'message:send') ? '<button class="btn gold" data-action="runWeekly">&#128172; Run weekly reminders</button>' : ''}
+        ${can(u, 'message:send') ? `<button class="btn gold" data-action="runWeekly">&#128172; Run ${DAY_NAMES[db.config.reminder.day]} reminders</button>` : ''}
       </div>
     </div>
     <section class="kpis">
@@ -200,6 +202,7 @@ export function viewCase(caseId) {
             ${canEditInfo ? `<a class="btn sm" href="#/staff/case/${encodeURIComponent(c.id)}/info">${prog.pct < 100 ? 'Fill in for client' : 'View or edit'}</a>` : ''}
           </div>
         </section>
+        ${can(u, 'message:send') ? reminderCard(c, client) : ''}
         <section class="card">
           <h2>Stage</h2>
           <select class="input" data-stage-select="${esc(c.id)}" ${canStage ? '' : 'disabled'}>
@@ -210,6 +213,7 @@ export function viewCase(caseId) {
             ${history.map((h) => `<li><b>${esc(STAGES[STAGE_INDEX[h.stage]].label)}</b><br><span class="muted">${fmtDateTime(h.changedAt)} by ${esc((store.user(h.changedById) || {}).name || 'system')}</span></li>`).join('')}
           </ul>
         </section>
+        ${can(u, 'outbox:view') ? messageLogCard(c) : ''}
         <section class="card">
           <h2>Audit trail</h2>
           <ul class="history">
@@ -278,7 +282,7 @@ export function viewOutbox() {
       <div><h1 style="font-size:22px">Outbox</h1><p class="muted small">Simulated WhatsApp and email channels. No real messages are sent in the prototype.</p></div>
       <div class="row">
         ${can(auth.currentUser(), 'config:manage') && (db.outbox.length || db.emails.length) ? '<button class="btn" data-action="clearOutbox">Clear outbox</button>' : ''}
-        ${can(auth.currentUser(), 'message:send') ? '<button class="btn gold" data-action="runWeekly">&#128172; Run weekly reminders</button>' : ''}
+        ${can(auth.currentUser(), 'message:send') ? `<button class="btn gold" data-action="runWeekly">&#128172; Run ${DAY_NAMES[db.config.reminder.day]} reminders</button>` : ''}
       </div>
     </div>
     <div class="tpl-tabs">
@@ -292,7 +296,7 @@ export function viewOutbox() {
           <div class="tiny muted">${esc(m.toPhone || m.to)} &middot; ${triggerLabel(m.trigger)} &middot; ${fmtDateTime(m.createdAt)}</div>
           <div class="preview-text">${esc(tab === 'email' ? m.subject : m.body.split('\n').slice(0, 2).join(' '))}</div>
         </li>`).join('')}</ul>`
-        : `<div class="all-done"><b style="color:var(--navy)">No messages yet</b><span class="muted small">Click "Run weekly reminders" to generate this week's personalised messages.</span></div>`}
+        : `<div class="all-done"><b style="color:var(--navy)">No messages yet</b><span class="muted small">Run the weekly reminders to generate this week's personalised messages.</span></div>`}
       </section>
       <div>${current ? (tab === 'email' ? emailPreview(current, toName(current)) : phone(current, toName(current))) : ''}</div>
     </div>
@@ -516,4 +520,34 @@ export function addItemModal(m) {
       <p class="tiny muted">${existing.size} items already on this case.</p>
       <div class="row" style="justify-content:flex-end"><button type="button" class="btn" data-action="closeModal">Cancel</button><button class="btn primary" type="submit">Add item</button></div>
     </form>`;
+}
+
+function reminderCard(c, client) {
+  const rule = effectiveRule(c);
+  return `<section class="card stack">
+    <h2 style="margin:0">Messages and reminders</h2>
+    <label class="field"><span>Send updates by</span><select class="input sm" data-channel-pref="${esc(client.id)}">
+      ${[['WHATSAPP', 'WhatsApp'], ['EMAIL', 'Email'], ['BOTH', 'WhatsApp and email']].map(([v, l]) => `<option value="${v}" ${client.channelPref === v ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
+    <label class="row small"><input type="checkbox" data-case-pause="${esc(c.id)}" ${c.remindersPaused ? 'checked' : ''}> Pause weekly reminders for this case</label>
+    <form id="caseReminderForm" data-case="${esc(c.id)}" class="stack">
+      <label class="row small"><input type="checkbox" name="custom" ${c.reminderRule ? 'checked' : ''}> Use a custom schedule for this case</label>
+      <div class="rule-grid">${ruleFields(rule)}</div>
+      <p class="tiny muted">${c.reminderRule ? 'Custom schedule.' : `Following the global schedule (${DAY_NAMES[db.config.reminder.day]}, ${String(db.config.reminder.hour).padStart(2, '0')}:00).`}</p>
+      <button class="btn sm" type="submit">Save schedule</button>
+    </form>
+  </section>`;
+}
+
+const TRIGGER_LABELS = { MANUAL: 'Reminder (manual)', WEEKLY: 'Weekly reminder', WELCOME: 'Welcome', LEAD_GREETING: 'Lead greeting', DOC_REJECTED: 'Document rejected', DOC_ACCEPTED: 'Document accepted', MAGIC_LINK: 'Sign-in link', STAGE_CHANGED: 'Stage changed', REVIEW_SUBMITTED: 'Review confirmation', ALL_DOCS_COMPLETE: 'All documents complete', STAFF_ALERT: 'Staff alert', STAFF_DIGEST: 'Staff digest' };
+
+function messageLogCard(c) {
+  const log = api.messageLog(c.id);
+  return `<section class="card">
+    <h2>Message log</h2>
+    <p class="tiny muted" style="margin-bottom:8px">Everything sent for this case, on every channel.</p>
+    <div class="table-wrap"><table class="data"><thead><tr><th>When</th><th>Channel</th><th>What</th><th>To</th><th>Status</th></tr></thead><tbody>
+      ${log.map((m) => `<tr><td class="small">${fmtDateTime(m.createdAt)}</td><td>${m.channel === 'WHATSAPP' ? 'WhatsApp' : 'Email'}</td><td class="small">${esc(TRIGGER_LABELS[m.trigger] || m.trigger)}</td>
+        <td class="small">${esc(m.toName || m.to)}</td><td><span class="chip ${m.status === 'SENT' ? 'green' : 'grey'} plain">${m.status === 'SENT' ? 'Sent (simulated)' : 'Queued'}</span></td></tr>`).join('') || '<tr><td colspan="5" class="muted" style="text-align:center;padding:12px">No messages yet.</td></tr>'}
+    </tbody></table></div>
+  </section>`;
 }

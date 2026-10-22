@@ -37,7 +37,7 @@ export function viewPortal(query) {
   const prog = formProgress(def, c.onboarding.data);
   const pending = api.pendingUploads(c.id);
   const openTask = db.reviewTasks.some((t) => t.caseId === c.id && t.status === 'OPEN');
-  const next = nextReminderDate();
+  const next = nextReminderDate(c);
   const contacts = store.contactUsers(client);
 
   return `<main class="page narrow stack">
@@ -106,7 +106,7 @@ export function viewPortal(query) {
         ? `<p class="muted small" style="margin:4px 0 12px">You have ${pending.length} new upload${pending.length === 1 ? '' : 's'} that ${pending.length === 1 ? 'has' : 'have'} not been sent for review yet.</p>
            <button class="btn primary block" data-action="submitReview" data-case="${esc(c.id)}">I've finished uploading - submit for review</button>`
         : `<p class="muted small" style="margin:4px 0">${openTask ? 'Your last batch is with our document specialist.' : 'When you have uploaded a batch, a button will appear here to send it for review.'}</p>`}
-      <p class="next-reminder">Next reminder: <b>${DAY_NAMES[next.getDay()]}</b> (${fmtDate(next.toISOString())}). It is a good time to finish this week's uploads.</p>
+      <p class="next-reminder">${c.remindersPaused ? 'Reminders are paused for this application.' : `Next reminder: <b>${DAY_NAMES[next.getDay()]}</b> (${fmtDate(next.toISOString())}). It is a good time to finish this week's uploads.`}</p>
     </section>` : ''}
 
     <section class="card">
