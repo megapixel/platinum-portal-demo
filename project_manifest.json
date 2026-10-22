@@ -1,29 +1,153 @@
 {
   "project_name": "platinum-immigration-portal-prototype",
+  "version": "2.0.0",
   "ref": "Q202607041IMMIGRATION",
   "client": "Platinum Immigration Consultancy Pte. Ltd.",
   "prepared_by": "Megapixel Consulting & Solutions Pte Ltd",
-  "type": "static HTML prototype (no build, offline)",
+  "type": "static HTML prototype (ES modules, no build, offline)",
   "master_language": "JavaScript (vanilla, browser)",
-  "db_type": "browser localStorage (simulated)",
+  "db_type": "browser localStorage (simulated); production target PostgreSQL via Prisma",
   "files": [
-    { "path": "index.html", "role": "App shell, demo banner" },
-    { "path": "css/styles.css", "role": "Styles, mobile-first" },
-    { "path": "js/app.js", "role": "domain, seed, store, storage, ai (mock), messaging, crm, metrics, reminders, auth, api guards, views" },
-    { "path": "seed-files/passport_elizabeth_tan.png", "role": "Correct passport upload (demo step 4)" },
-    { "path": "seed-files/passport_blurry_elizabeth_tan.png", "role": "Unreadable expiry date demo" },
-    { "path": "seed-files/payslip_elizabeth_tan_2026-09.pdf", "role": "Wrong file for passport slot (demo step 4)" },
-    { "path": "seed-files/payslips_elizabeth_tan_apr-sep_2026.pdf", "role": "Correct 6-month payslips" },
-    { "path": "seed-files/employer_letter_signed_elizabeth_tan.pdf", "role": "Fixes rejected employer letter" },
-    { "path": "seed-files/noa_chong_wei_ling_ya2026.pdf", "role": "Notice of Assessment sample" },
-    { "path": "seed-files/cpf_statement_rizal_santos_12m.pdf", "role": "CPF statement sample" },
-    { "path": "README.md", "role": "Setup, demo logins, demo script, mock vs real AI, retention TODO" },
-    { "path": "ARCHITECTURE.md", "role": "Interfaces and production requirements" },
-    { "path": "logs/superagent.log", "role": "Orchestration decisions" }
+    {
+      "path": "index.html",
+      "role": "App shell, demo banner, vendor script tags"
+    },
+    {
+      "path": "css/styles.css",
+      "role": "Styles, mobile-first"
+    },
+    {
+      "path": "js/main.js",
+      "role": "Entry: loads the store, renders, exposes window.PlatinumPortal"
+    },
+    {
+      "path": "js/domain.js",
+      "role": "Constants: stages, roles, document types, reject reasons"
+    },
+    {
+      "path": "js/utils.js",
+      "role": "Pure helpers"
+    },
+    {
+      "path": "js/store.js",
+      "role": "Database (localStorage), versioned load, audit helpers"
+    },
+    {
+      "path": "js/seed/",
+      "role": "Seed builders: staff and clients, checklists, sales, invoices, letters, 60 archived cases"
+    },
+    {
+      "path": "js/auth/permissions.js",
+      "role": "The single permission matrix"
+    },
+    {
+      "path": "js/auth/session.js",
+      "role": "Sessions, magic links, guards"
+    },
+    {
+      "path": "js/api/",
+      "role": "Guarded API per domain: cases, onboarding, leads, consolidation, messaging, invoices, outcome, letters, integrations, admin"
+    },
+    {
+      "path": "js/providers/",
+      "role": "Interfaces with mocks and stubs: messaging, email, payment, accounting, crm, drive"
+    },
+    {
+      "path": "js/ai.js",
+      "role": "Mock document reader and name cross-check"
+    },
+    {
+      "path": "js/invoicing.js",
+      "role": "Invoice maths and derived statuses"
+    },
+    {
+      "path": "js/caselogic.js",
+      "role": "Checklist building and re-application reuse rules"
+    },
+    {
+      "path": "js/analytics.js",
+      "role": "Management numbers"
+    },
+    {
+      "path": "js/audit.js",
+      "role": "Audit categories and change descriptions"
+    },
+    {
+      "path": "js/letters.js",
+      "role": "Letter merge, DOCX and PDF output"
+    },
+    {
+      "path": "js/pack.js",
+      "role": "Submission pack (ZIP and merged PDF)"
+    },
+    {
+      "path": "js/invoicepdf.js",
+      "role": "Invoice PDF"
+    },
+    {
+      "path": "js/reminders.js",
+      "role": "Reminder rules and scheduler logic"
+    },
+    {
+      "path": "js/digest.js",
+      "role": "Staff digest and alerts"
+    },
+    {
+      "path": "js/messagetemplates.js",
+      "role": "Editable message templates and merge fields"
+    },
+    {
+      "path": "js/notify.js",
+      "role": "Send on the client's preferred channel"
+    },
+    {
+      "path": "js/types.js",
+      "role": "JSDoc typedefs"
+    },
+    {
+      "path": "js/views/",
+      "role": "Rendering and event handling"
+    },
+    {
+      "path": "vendor/",
+      "role": "pdf-lib 1.17.1 and JSZip 3.10.1 with licences"
+    },
+    {
+      "path": "seed-files/",
+      "role": "Specimen documents for upload demos"
+    },
+    {
+      "path": "prisma/schema.prisma",
+      "role": "Production data model (spec)"
+    },
+    {
+      "path": "jsconfig.json",
+      "role": "Optional type-check config"
+    },
+    {
+      "path": "tests/e2e/",
+      "role": "Browser tests, including the demo script v2"
+    },
+    {
+      "path": "README.md",
+      "role": "Setup, logins, demo script v2, what is simulated"
+    },
+    {
+      "path": "ARCHITECTURE.md",
+      "role": "Interfaces, data model, production needs"
+    },
+    {
+      "path": "logs/superagent.log",
+      "role": "Orchestration decisions"
+    }
   ],
   "flags_for_review": [
-    "Checklist templates are samples; client to confirm real lists",
-    "CRM/WhatsApp platform TBC",
-    "Data retention period to be agreed (README TODO)"
+    "Strict TypeScript and server-side checks are production targets; the prototype has JSDoc types and an optional jsconfig (about 1,950 strict errors if run with checkJs)",
+    "Checklist templates, onboarding fields, message and letter wording and package prices are samples to confirm with the client",
+    "CRM platform, accounting system and payment gateway TBC",
+    "Reminder schedule, GST, payment schedule, retention, re-application rule and document validity windows are config values (TBC)",
+    "Data retention is a setting only: nothing is deleted in the prototype",
+    "Pack and letter files are built in the browser; production needs a server job",
+    "Archived history (60 past cases) has no checklists or documents"
   ]
 }

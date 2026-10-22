@@ -1,0 +1,11 @@
+{
+  "name": "platinum-portal-e2e",
+  "private": true,
+  "type": "module",
+  "description": "Browser tests for the prototype. Not needed to run the demo.",
+  "scripts": {
+    "serve": "cd ../.. && python3 -m http.server 8123",
+    "test": "for f in 0*.mjs 10*.mjs; do echo \"== $f\"; node $f || exit 1; done"
+  },
+  "dependencies": { "pdf-lib": "1.17.1", "playwright-core": "^1.48.0" }
+}

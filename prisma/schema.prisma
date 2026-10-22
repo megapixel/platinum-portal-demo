@@ -1,0 +1,446 @@
+// Production data model for the Platinum Immigration portal. A SPEC: the prototype keeps the same
+// entities as arrays in one JSON document (js/store.js) and does not run Prisma.
+// Settings the client has not confirmed live in Config rows, never in code.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  OPS_MANAGER
+  CONSULTANT
+  DOCUMENT_SPECIALIST
+  CLIENT
+}
+enum ContactKind {
+  PRIMARY
+  SECONDARY
+}
+enum ChannelPref {
+  WHATSAPP
+  EMAIL
+  BOTH
+}
+enum CaseType {
+  PR
+  CITIZENSHIP
+  PR_WITH_DEPENDANTS
+}
+enum Stage {
+  ONBOARDED
+  COLLECTING_DOCUMENTS
+  DOCUMENTS_COMPLETE
+  REVIEW_AND_PREPARATION
+  SUBMITTED
+  OUTCOME
+}
+enum ItemStatus {
+  PENDING
+  UPLOADED
+  AI_FLAGGED
+  ACCEPTED
+  REJECTED
+}
+enum LeadStage {
+  NEW
+  CONTACTED
+  CONSULTATION_BOOKED
+  PROPOSAL_SENT
+  WON
+  LOST
+}
+enum OutcomeResult {
+  APPROVED
+  REJECTED
+}
+enum InvoiceStatus {
+  DRAFT
+  ISSUED
+  VOID
+}
+enum PayMethod {
+  PAYNOW
+  BANK_TRANSFER
+  CARD
+  CASH
+}
+enum MsgChannel {
+  WHATSAPP
+  EMAIL
+}
+enum IntroducerTier {
+  STANDARD
+  PREMIUM
+}
+
+model User {
+  id          String   @id @default(cuid())
+  name        String
+  email       String   @unique
+  phone       String?
+  role        Role
+  clientId    String?                      // set for CLIENT users: each contact has their own login
+  contactKind ContactKind?
+  client      Client?  @relation(fields: [clientId], references: [id])
+  createdAt   DateTime @default(now())
+  // No password column: staff use SSO, clients use OTP or magic links.
+  magicLinks  MagicLink[]
+  assignedCases Case[] @relation("CaseConsultant")
+  assignedLeads Lead[] @relation("LeadConsultant")
+}
+
+model MagicLink {
+  token     String    @id
+  userId    String
+  next      String
+  createdAt DateTime  @default(now())
+  expiresAt DateTime                       // config.magicLinkMinutes after creation
+  usedAt    DateTime?
+  user      User      @relation(fields: [userId], references: [id])
+}
+
+model Client {
+  id          String      @id @default(cuid())
+  name        String
+  profile     Json                          // nationality, birth place, employer and so on
+  dependants  Json        @default("[]")
+  channelPref ChannelPref @default(WHATSAPP)
+  createdAt   DateTime    @default(now())
+  contacts    User[]                        // at most a primary and a secondary
+  cases       Case[]
+}
+
+model Case {
+  id                  String   @id                 // PIC-YYYY-NNNN
+  clientId            String
+  previousCaseId      String?                      // set when the re-application rule opens a new linked case
+  caseType            CaseType
+  stage               Stage
+  attempt             Int      @default(1)
+  assignedStaffId     String
+  startDate           DateTime
+  targetSubmissionDate DateTime
+  married             Boolean  @default(false)
+  dependants          Json     @default("[]")
+  sourceLeadId        String?  @unique
+  packageId           String?
+  legacyDriveUrl      String   @default("")
+  remindersPaused     Boolean  @default(false)
+  reminderRule        Json?                        // per-case override of the global rule
+  lastReminderAt      DateTime?
+  onboarding          Json                         // { data, status, updatedAt, updatedById, submittedAt }
+  createdAt           DateTime @default(now())
+  client              Client   @relation(fields: [clientId], references: [id])
+  consultant          User     @relation("CaseConsultant", fields: [assignedStaffId], references: [id])
+  items               CaseChecklistItem[]
+  stageHistory        StageHistory[]
+  attempts            CaseAttempt[]
+  outcome             Outcome?
+  invoices            Invoice[]
+  letters             Letter[]
+  reviewTasks         ReviewTask[]
+  messages            Message[]
+  audit               AuditEntry[]
+  @@index([assignedStaffId, stage])
+}
+
+model CaseAttempt {                              // archived attempts, kept with their outcome
+  id          String   @id @default(cuid())
+  caseId      String
+  attempt     Int
+  startedAt   DateTime
+  submittedAt DateTime?
+  outcome     Json
+  case        Case     @relation(fields: [caseId], references: [id])
+  @@unique([caseId, attempt])
+}
+
+model Outcome {
+  caseId       String        @id
+  result       OutcomeResult
+  decisionDate DateTime
+  reference    String        @default("")
+  reason       String        @default("")
+  nextSteps    String        @default("")
+  recordedById String
+  recordedAt   DateTime      @default(now())
+  case         Case          @relation(fields: [caseId], references: [id])
+}
+
+model StageHistory {
+  id          String   @id @default(cuid())
+  caseId      String
+  stage       Stage
+  attempt     Int      @default(1)
+  changedAt   DateTime @default(now())
+  changedById String
+  case        Case     @relation(fields: [caseId], references: [id])
+  @@index([caseId, stage])
+}
+
+model ChecklistTemplate {
+  id       String @id @default(cuid())
+  caseType CaseType
+  name     String
+  items    ChecklistTemplateItem[]
+}
+
+model ChecklistTemplateItem {
+  id             String @id @default(cuid())
+  templateId     String
+  code           String
+  label          String
+  description    String
+  required       Boolean
+  appliesTo      String                         // MAIN, SPOUSE, CHILD
+  sortOrder      Int
+  docType        String
+  requiredFields String[]
+  template       ChecklistTemplate @relation(fields: [templateId], references: [id])
+}
+
+model CaseChecklistItem {                        // snapshots the template item, so editing a template never changes a live case
+  id               String     @id
+  caseId           String
+  templateItemId   String?
+  code             String
+  label            String
+  description      String
+  required         Boolean
+  docType          String
+  requiredFields   String[]
+  personLabel      String
+  personName       String
+  sortOrder        Int
+  status           ItemStatus @default(PENDING)
+  staffRemark      String?
+  rejectReason     String?
+  rejectedAt       DateTime?
+  dueDate          DateTime?
+  reuploaded       Boolean    @default(false)
+  reusedFromAttempt Int?
+  attemptNote      String?
+  updatedAt        DateTime   @updatedAt
+  case             Case       @relation(fields: [caseId], references: [id])
+  documents        Document[]
+}
+
+model Document {
+  id            String   @id @default(cuid())
+  itemId        String
+  caseId        String
+  version       Int                              // a re-upload creates the next version; earlier ones stay
+  fileName      String
+  mimeType      String
+  size          Int
+  storageKey    String                           // key in the private bucket, served through a signed URL
+  uploadedAt    DateTime @default(now())
+  uploadedById  String
+  uploadedByRole Role
+  onBehalf      Boolean  @default(false)
+  via           String?                          // for example "Google Drive import"
+  aiDetectedType String?
+  aiConfidence  Float?
+  aiMatches     Boolean?
+  aiExtracted   Json?
+  aiIssues      String[]
+  aiCheckedAt   DateTime?
+  item          CaseChecklistItem @relation(fields: [itemId], references: [id])
+  @@unique([itemId, version])
+}
+
+model ReviewTask {
+  id          String    @id @default(cuid())
+  caseId      String
+  createdAt   DateTime  @default(now())
+  createdById String
+  status      String                              // OPEN or DONE
+  itemIds     String[]
+  doneAt      DateTime?
+  case        Case      @relation(fields: [caseId], references: [id])
+}
+
+model FormDefinition {                           // onboarding form per case type
+  id       String   @id @default(cuid())
+  caseType CaseType @unique
+  name     String
+  sections Json                                   // [{ key, label, fields: [{ key, label, type, required, options }] }]
+}
+
+model LeadSource {
+  id    String @id @default(cuid())
+  label String @unique
+  leads Lead[]
+}
+
+model Introducer {
+  id    String         @id @default(cuid())
+  name  String
+  org   String         @default("")
+  tier  IntroducerTier @default(STANDARD)
+  email String         @default("")
+  phone String         @default("")
+  leads Lead[]
+}
+
+model Package {
+  id          String   @id @default(cuid())
+  name        String
+  caseType    CaseType
+  price       Decimal  @db.Decimal(10, 2)        // before GST; sample prices until the client confirms
+  description String   @default("")
+}
+
+model Lead {
+  id             String    @id @default(cuid())
+  name           String
+  phone          String
+  email          String
+  nationality    String
+  passType       String    @default("")
+  yearsInSg      Int       @default(0)
+  interest       String
+  sourceId       String?
+  introducerId   String?
+  utm            Json      @default("{}")        // source, medium, campaign from /apply
+  stage          LeadStage @default(NEW)
+  lostReason     String?
+  assignedStaffId String?
+  packageId      String?
+  quotedAmount   Decimal?  @db.Decimal(10, 2)
+  nextFollowUp   DateTime?
+  wonAt          DateTime?
+  convertedCaseId String?
+  archived       Boolean   @default(false)
+  createdAt      DateTime  @default(now())
+  notes          LeadNote[]
+  source         LeadSource?  @relation(fields: [sourceId], references: [id])
+  introducer     Introducer?  @relation(fields: [introducerId], references: [id])
+  consultant     User?        @relation("LeadConsultant", fields: [assignedStaffId], references: [id])
+  @@index([stage, assignedStaffId])
+}
+
+model LeadNote {
+  id     String   @id @default(cuid())
+  leadId String
+  kind   String                                   // CALL, WHATSAPP, MEETING, NOTE
+  text   String
+  at     DateTime @default(now())
+  byId   String
+  lead   Lead     @relation(fields: [leadId], references: [id])
+}
+
+model Invoice {
+  id         String        @id @default(cuid())
+  number     String        @unique                 // INV-YYYY-NNNN
+  caseId     String
+  packageId  String?
+  status     InvoiceStatus @default(ISSUED)
+  issuedAt   DateTime?
+  voidedAt   DateTime?
+  voidReason String?
+  subtotal   Decimal       @db.Decimal(10, 2)
+  gstRate    Decimal       @db.Decimal(5, 4)       // from config at issue time
+  gst        Decimal       @db.Decimal(10, 2)
+  total      Decimal       @db.Decimal(10, 2)
+  schedule   Json                                  // [{ label, pct, amount, due }] from config at issue time
+  lines      InvoiceLine[]
+  payments   Payment[]
+  case       Case          @relation(fields: [caseId], references: [id])
+}
+
+model InvoiceLine {
+  id          String  @id @default(cuid())
+  invoiceId   String
+  description String
+  qty         Int
+  unit        Decimal @db.Decimal(10, 2)
+  invoice     Invoice @relation(fields: [invoiceId], references: [id])
+}
+
+model Payment {
+  id           String    @id @default(cuid())
+  invoiceId    String
+  date         DateTime
+  amount       Decimal   @db.Decimal(10, 2)
+  method       PayMethod
+  reference    String    @default("")
+  source       String                              // MANUAL or PAY_NOW (gateway webhook in production)
+  recordedById String
+  recordedAt   DateTime  @default(now())
+  invoice      Invoice   @relation(fields: [invoiceId], references: [id])
+}
+
+model MessageTemplate {
+  key     String      @id                          // WELCOME, REMINDER_WEEKLY, DOC_REJECTED and so on
+  name    String
+  channel String                                   // WHATSAPP, EMAIL or BOTH
+  subject String
+  body    String                                   // {{merge fields}}, validated against an allowed list per key
+}
+
+model Message {                                    // WhatsApp and email log, shown on each case
+  id        String     @id @default(cuid())
+  caseId    String?
+  leadId    String?
+  channel   MsgChannel
+  to        String
+  toName    String?
+  subject   String?
+  body      String
+  link      String?
+  trigger   String
+  status    String                                 // QUEUED, SENT, DELIVERED, FAILED (from provider webhooks)
+  createdAt DateTime   @default(now())
+  sentAt    DateTime?
+  case      Case?      @relation(fields: [caseId], references: [id])
+}
+
+model LetterTemplate {                             // staff only; clients never see these
+  id                    String   @id @default(cuid())
+  name                  String
+  kind                  String                      // RECOMMENDATION, COVER, OTHER
+  body                  String                      // HTML with {{merge fields}}
+  clientMayDownloadBlank Boolean @default(false)    // default off (config.letterBlankDownloadDefault)
+  updatedAt             DateTime @updatedAt
+}
+
+model Letter {                                     // attached to a case as an internal document
+  id          String   @id @default(cuid())
+  caseId      String
+  templateId  String?
+  name        String
+  body        String
+  version     Int      @default(1)
+  createdById String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  case        Case     @relation(fields: [caseId], references: [id])
+}
+
+model AuditEntry {                                 // append only
+  id       String   @id @default(cuid())
+  caseId   String?
+  leadId   String?
+  itemId   String?
+  action   String
+  detail   String
+  actorId  String?
+  at       DateTime @default(now())
+  before   Json?
+  after    Json?
+  case     Case?    @relation(fields: [caseId], references: [id])
+  @@index([caseId, at])
+  @@index([leadId, at])
+}
+
+model Config {                                     // one row per setting: reminder rule, GST, payment schedule, retention and so on
+  key   String @id
+  value Json
+}
