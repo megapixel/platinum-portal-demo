@@ -5,10 +5,12 @@ import { esc, HttpError, toCsv } from '../utils.js';
 import { auth, requestMagicLink } from '../auth/session.js';
 import { api } from '../api/index.js';
 import { metrics } from '../metrics.js';
-import { root, ui, parseHash, go, toast, csvDownload } from './common.js';
+import { root, ui, parseHash, go, toast, csvDownload, downloadBlob } from './common.js';
 import { render } from './router.js';
 import { randomCaseSpec } from './staff.js';
 import { filteredLeads } from './leads.js';
+import { queueRows } from './consolidation.js';
+import { buildPack } from '../pack.js';
 
 function handleError(e, modalTarget) {
   const msg = e instanceof HttpError ? e.message : 'Something went wrong. Please try again.';
@@ -43,7 +45,38 @@ function moveLeadTo(leadId, stage) {
   } catch (e) { handleError(e); render(); return false; }
 }
 
+/** After reviewing in the queue, select the next row (or the previous one at the end). */
+function nextQueueSelection(itemId) {
+  const rows = queueRows();
+  const i = rows.findIndex((r) => r.item.id === itemId);
+  const next = rows[i + 1] || rows[i - 1];
+  return next ? next.item.id : null;
+}
+const onQueue = () => parseHash().path === '/staff/review';
+
 const actions = {
+  queueFilter(el) { ui.queueFilter = el.dataset.filter; ui.queueSel = null; render(); },
+  queueSelect(el) { ui.queueSel = el.dataset.item; render(); },
+  async queueAccept(el) {
+    try {
+      const next = nextQueueSelection(el.dataset.item);
+      await api.reviewItem(el.dataset.item, 'ACCEPTED');
+      ui.queueSel = next; render(); toast('Document accepted.');
+    } catch (e) { handleError(e); }
+  },
+  async generatePack(el) {
+    const btn = el; btn.disabled = true; btn.textContent = 'Building pack...';
+    try {
+      const { caseRec, entries } = api.preparePack(el.dataset.case);
+      const client = store.caseClient(caseRec);
+      const pack = await buildPack(caseRec, client.name, entries);
+      downloadBlob(pack.zipName, pack.zip);
+      setTimeout(() => downloadBlob(pack.pdfName, pack.pdf), 400);
+      await api.completePack(el.dataset.case, { files: pack.files, pages: pack.pages });
+      render();
+      toast(`Pack generated: ${pack.files.length} files in a ZIP, plus a ${pack.pages} page merged PDF. Stage is now ${esc(api.packTargetLabel())}.`, 7000);
+    } catch (e) { handleError(e); render(); }
+  },
   fill(el) {
     const f = document.getElementById('loginForm');
     f.email.value = el.dataset.email;
@@ -177,7 +210,10 @@ root.addEventListener('submit', async (e) => {
     }
     if (f.id === 'rejectForm') {
       try {
-        await api.reviewItem(ui.modal.itemId, 'REJECTED', v('remark'), f.elements.namedItem('reason').value);
+        const rejectedId = ui.modal.itemId;
+        const next = onQueue() ? nextQueueSelection(rejectedId) : null;
+        await api.reviewItem(rejectedId, 'REJECTED', v('remark'), f.elements.namedItem('reason').value);
+        if (onQueue()) ui.queueSel = next;
         ui.modal = null; render(); toast('Document rejected. The client has been sent the reason and what to do next.', 4500);
       } catch (err) { ui.modal.remark = v('remark'); handleError(err, true); }
     }
@@ -347,6 +383,15 @@ document.addEventListener('keydown', (e) => {
     render();
     const again = root.querySelector(`[data-add-field="${CSS.escape(it.id)}"]`);
     if (again) again.focus();
+  }
+  if (onQueue() && !ui.modal && !el.matches('input, textarea, select') && !e.ctrlKey && !e.metaKey) {
+    const rows = queueRows();
+    const i = rows.findIndex((r) => r.item.id === ui.queueSel);
+    const k = e.key.toLowerCase();
+    if ((k === 'arrowdown' || k === 'j') && rows[i + 1]) { ui.queueSel = rows[i + 1].item.id; e.preventDefault(); render(); }
+    else if ((k === 'arrowup' || k === 'k') && rows[i - 1]) { ui.queueSel = rows[i - 1].item.id; e.preventDefault(); render(); }
+    else if (k === 'a' && rows[i]) { actions.queueAccept({ dataset: { item: rows[i].item.id } }); }
+    else if (k === 'r' && rows[i]) { ui.modal = { type: 'reject', itemId: rows[i].item.id }; render(); }
   }
   if (e.key === 'Escape' && ui.modal && ui.modal.phase !== 'checking') { ui.modal = null; render(); }
   // Keyboard-friendly review: 1-6 picks a reject reason, Ctrl+Enter submits.

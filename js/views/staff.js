@@ -162,6 +162,7 @@ export function viewCase(caseId) {
         <p class="muted small">${esc(c.id)} &middot; ${esc(CASE_TYPES[c.caseType].label)} &middot; ${esc(rag.reason)}</p>
       </div>
       <div class="row">
+        ${can(u, 'pack:generate') ? `<a class="btn" href="#/staff/case/${encodeURIComponent(c.id)}/pack">Consolidation</a>` : ''}
         <a class="btn" href="#/portal?case=${encodeURIComponent(c.id)}" target="_blank" rel="noopener">Open client portal</a>
         ${can(u, 'message:send') ? `<button class="btn gold" data-action="remindNow" data-case="${esc(c.id)}" ${todo.length ? '' : 'disabled title="Nothing outstanding from the client"'}>&#128172; Send reminder now</button>` : ''}
       </div>

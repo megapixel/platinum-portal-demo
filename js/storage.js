@@ -33,6 +33,12 @@ export const storage = {
       return u;
     } catch (e) { return null; }
   },
+  /** bytes(docId): the stored file as an ArrayBuffer, or null when it is not available (e.g. seeded specimens). */
+  async bytes(docId) {
+    const u = this.url(docId);
+    if (!u) return null;
+    try { return await (await fetch(u)).arrayBuffer(); } catch (e) { return null; }
+  },
   clearAll() {
     this.objectUrls.forEach((u) => URL.revokeObjectURL(u));
     this.objectUrls.clear();

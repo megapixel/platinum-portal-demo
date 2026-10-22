@@ -21,6 +21,9 @@ export const ui = {
   applyDone: null,
   applyError: '',
   magicSent: false,
+  queueFilter: 'ALL',
+  queueSel: null,
+  adminTab: 'permissions',
 };
 
 export function parseHash() {
@@ -84,12 +87,15 @@ export function uploadedByLabel(doc, getUser) {
   return `${who} (${role}${by.onBehalf ? ', on behalf' : ''})`;
 }
 
-export function csvDownload(filename, csv) {
-  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+export function downloadBlob(filename, blob) {
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
   a.download = filename;
   document.body.appendChild(a);
   a.click();
   setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 500);
+}
+
+export function csvDownload(filename, csv) {
+  downloadBlob(filename, new Blob([csv], { type: 'text/csv;charset=utf-8' }));
 }

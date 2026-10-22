@@ -23,6 +23,7 @@ export function clientShell(body) {
 function navItems(u) {
   const items = [['dash', '#/staff', 'Dashboard', true]];
   items.push(['myday', '#/staff/my-day', 'My day', can(u, 'lead:view')]);
+  items.push(['review', '#/staff/review', 'Review queue', can(u, 'item:review')]);
   items.push(['leads', '#/staff/leads', 'Pipeline', can(u, 'lead:view')]);
   items.push(['outbox', '#/staff/outbox', 'Outbox', can(u, 'outbox:view')]);
   items.push(['templates', '#/staff/templates', 'Templates', can(u, 'template:manage')]);

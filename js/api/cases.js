@@ -103,6 +103,30 @@ export async function createClientWithCase(spec, actor) {
   return { caseRec, client, welcome, user };
 }
 
+
+/** Moves a case to a stage: history, audit, client message, CRM hook. Callers check permissions and save. */
+export async function changeStage(c, stage, actor) {
+  if (!(stage in STAGE_INDEX)) throw new HttpError(400, 'Invalid stage.');
+  if (c.stage === stage) return;
+  const before = c.stage;
+  c.stage = stage;
+  db.stageHistory.push({ id: uid('sh'), caseId: c.id, stage, changedAt: nowIso(), changedById: actor.id });
+  store.audit(c.id, 'STAGE_CHANGED', STAGES[STAGE_INDEX[stage]].label, actor.id, null, { before: { stage: before }, after: { stage } });
+  await notifyClient(store.caseClient(c), {
+    caseId: c.id, trigger: 'STAGE_CHANGED', templateKey: 'STAGE_CHANGED', link: portalLinkFor(c),
+    vars: { caseNo: c.id, stage: STAGES[STAGE_INDEX[stage]].label },
+  });
+  crmSync.onStageChanged(c.id, stage);
+}
+
+/** Closes open review tasks once nothing in them is waiting for review any more. */
+function closeFinishedTasks(caseId) {
+  for (const t of db.reviewTasks.filter((x) => x.caseId === caseId && x.status === 'OPEN')) {
+    const waiting = t.itemIds.some((id) => { const i = store.item(id); return i && ['UPLOADED', 'AI_FLAGGED'].includes(i.status); });
+    if (!waiting) { t.status = 'DONE'; t.doneAt = nowIso(); }
+  }
+}
+
 export const caseApi = {
   /** Cases the current user may see: a client's own, a consultant's assigned ones, or all for other staff. */
   visibleCases() {
@@ -209,24 +233,15 @@ export const caseApi = {
         await notifyClient(client, { caseId: caseRec.id, trigger: 'ALL_DOCS_COMPLETE', templateKey: 'ALL_DOCS_COMPLETE', vars: { ...base, caseType: CASE_TYPES[caseRec.caseType].inMessage } });
       }
     }
+    closeFinishedTasks(item.caseId);
     store.save();
     crmSync.onItemStatusChanged(item.caseId, item.id, decision);
   },
 
   async setStage(caseId, stage) {
     const { user: staff, caseRec: c } = requireCaseAccess(caseId, 'case:stage');
-    if (!(stage in STAGE_INDEX)) throw new HttpError(400, 'Invalid stage.');
-    if (c.stage === stage) return;
-    const before = c.stage;
-    c.stage = stage;
-    db.stageHistory.push({ id: uid('sh'), caseId, stage, changedAt: nowIso(), changedById: staff.id });
-    store.audit(caseId, 'STAGE_CHANGED', STAGES[STAGE_INDEX[stage]].label, staff.id, null, { before: { stage: before }, after: { stage } });
-    await notifyClient(store.caseClient(c), {
-      caseId, trigger: 'STAGE_CHANGED', templateKey: 'STAGE_CHANGED', link: portalLinkFor(c),
-      vars: { caseNo: c.id, stage: STAGES[STAGE_INDEX[stage]].label },
-    });
+    await changeStage(c, stage, staff);
     store.save();
-    crmSync.onStageChanged(caseId, stage);
   },
 
   addItem(caseId, spec) {

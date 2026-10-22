@@ -12,6 +12,7 @@ import { viewPortal, viewHelp, viewInfoForm } from './client.js';
 import { viewDashboard, viewCase, viewOutbox, viewTemplates, viewNewCase, rejectModal, addItemModal } from './staff.js';
 import { viewApply, viewLeads, viewLead, viewMyDay, convertModal, lostModal } from './leads.js';
 import { viewAdmin } from './admin.js';
+import { viewReviewQueue, viewPack } from './consolidation.js';
 
 function uploadModal(m) {
   const item = store.item(m.itemId);
@@ -99,9 +100,11 @@ export function render() {
       if (path.startsWith('/staff/case/')) {
         const parts = path.split('/');
         const caseId = decodeURIComponent(parts[3]);
+        if (parts[4] === 'pack') return paint(staffShell('review', viewPack(caseId)));
         if (parts[4] === 'info') return paint(staffShell('dash', viewInfoForm(caseId, true)));
         return paint(staffShell('dash', viewCase(caseId)));
       }
+      if (path === '/staff/review') { requirePerm('item:review'); return paint(staffShell('review', viewReviewQueue())); }
       if (path === '/staff/outbox') { requirePerm('outbox:view'); return paint(staffShell('outbox', viewOutbox())); }
       if (path === '/staff/new') return paint(staffShell('dash', viewNewCase()));
       if (path === '/staff/templates') return paint(staffShell('templates', viewTemplates()));
