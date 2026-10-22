@@ -80,6 +80,7 @@ export function seedSales(d) {
       assignedStaffId: stage === 'NEW' && i % 2 === 0 ? null : pick(consultants),
       packageId: pkgId, quotedAmount: pkg ? pkg.price : null,
       nextFollowUp: stage === 'WON' || stage === 'LOST' ? null : daysFromNow(Math.floor(r() * 10) - 3),
+      wonAt: stage === 'WON' ? daysAgo(2 + Math.floor(r() * 8)) : null,
       notes: [], convertedCaseId: null, createdAt: daysAgo(created),
     };
     const noteCount = stage === 'NEW' ? 0 : 1 + Math.floor(r() * 2);

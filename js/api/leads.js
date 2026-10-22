@@ -76,6 +76,7 @@ export const leadApi = {
     const before = lead.stage;
     lead.stage = stage;
     lead.lostReason = stage === 'LOST' ? String(lostReason).trim() : null;
+    lead.wonAt = stage === 'WON' ? nowIso() : null;
     if (stage === 'WON' || stage === 'LOST') lead.nextFollowUp = null;
     store.auditLead(lead.id, 'LEAD_STAGE_CHANGED', `${LEAD_STAGE_LABEL[before]} to ${LEAD_STAGE_LABEL[stage]}${lead.lostReason ? ': ' + lead.lostReason : ''}`, user.id,
       { before: { stage: before }, after: { stage, lostReason: lead.lostReason } });

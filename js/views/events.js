@@ -71,6 +71,14 @@ async function setStageConfirmed(caseId, stage) {
 const onQueue = () => parseHash().path === '/staff/review';
 
 const actions = {
+  tableCsv(el) {
+    const table = el.closest('.csv-bar').nextElementSibling.querySelector('table');
+    const clean = (c) => c.textContent.replace(/\s+/g, ' ').trim();
+    const head = [...table.querySelectorAll('thead th')].map(clean);
+    const rows = [...table.querySelectorAll('tbody tr')].filter((tr) => !tr.querySelector('td[colspan]:only-child') && !tr.classList.contains('group-row')).map((tr) => [...tr.children].map(clean));
+    const heading = (el.closest('section, main').querySelector('h1, h2') || { textContent: 'table' }).textContent;
+    csvDownload(`${heading.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')}.csv`, toCsv(head, rows));
+  },
   selectLetterTpl(el) { ui.letterTplId = el.dataset.id; ui.letterTplError = ''; render(); },
   newLetterTpl() { ui.letterTplId = 'NEW'; ui.letterTplError = ''; render(); },
   deleteLetterTpl(el) {
@@ -202,7 +210,7 @@ const actions = {
   closeModalBackdrop(el, e) { if (e.target === el && (!ui.modal || ui.modal.phase !== 'checking')) { ui.modal = null; render(); } },
   openCase(el) { go('/staff/case/' + encodeURIComponent(el.dataset.case)); },
   openLead(el) { go('/staff/lead/' + encodeURIComponent(el.dataset.lead)); },
-  clearFilters() { ui.filters = { q: '', stage: '', type: '', rag: '', staff: '' }; render(); },
+  clearFilters() { ui.filters = { q: '', stage: '', type: '', rag: '', staff: '', closed: false }; render(); },
   toggleItem(el) { ui.expanded[el.dataset.item] = !ui.expanded[el.dataset.item]; render(); },
   async accept(el) {
     try {
@@ -473,6 +481,7 @@ root.addEventListener('change', async (e) => {
       root.querySelector('[data-tpl-hint]').textContent = `${n} documents for the main applicant${dep ? ', plus passport, birth certificate and photo for each dependant' : ''}. Edit the lists under Templates.`;
       return;
     }
+    if (el.matches('[data-filter-closed]')) { ui.filters.closed = el.checked; render(); return; }
     if (el.matches('select[data-filter]')) { ui.filters[el.dataset.filter] = el.value; render(); return; }
     if (el.matches('[data-stage-select]')) {
       const ok = await setStageConfirmed(el.dataset.stageSelect, el.value); render(); if (ok) toast('Stage updated. The client sees it straight away.');
@@ -509,6 +518,7 @@ root.addEventListener('change', async (e) => {
     if (el.matches('[data-case-pause]')) { api.setCaseReminder(el.dataset.casePause, { paused: el.checked }); render(); toast(el.checked ? 'Reminders paused for this case.' : 'Reminders resumed.'); return; }
     if (el.matches('[data-deadline]')) { api.setItemDeadline(el.dataset.deadline, el.value); render(); toast('Deadline saved.'); return; }
     if (el.matches('[data-channel-pref]')) { api.setChannelPref(el.dataset.channelPref, el.value); render(); toast('Preference saved.'); return; }
+    if (el.matches('[data-lead-archived]')) { ui.leadFilters.archived = el.checked; render(); return; }
     if (el.matches('[data-lead-filter]')) { ui.leadFilters[el.dataset.leadFilter] = el.value; if (el.tagName === 'SELECT') render(); return; }
     if (el.matches('[data-lead-stage]')) { moveLeadTo(el.dataset.leadStage, el.value); return; }
     if (el.matches('[data-lead-field]')) {

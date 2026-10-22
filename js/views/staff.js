@@ -39,7 +39,8 @@ export function viewDashboard() {
   const flagged = db.items.filter((i) => visibleIds.has(i.caseId) && i.status === 'AI_FLAGGED').length;
   const ragOrder = { RED: 0, AMBER: 1, GREEN: 2 };
   const visible = rows.filter((r) =>
-    (!f.q || r.client.name.toLowerCase().includes(f.q.toLowerCase()) || r.c.id.toLowerCase().includes(f.q.toLowerCase()))
+    (f.closed || f.stage === 'OUTCOME' || r.c.stage !== 'OUTCOME')
+    && (!f.q || r.client.name.toLowerCase().includes(f.q.toLowerCase()) || r.c.id.toLowerCase().includes(f.q.toLowerCase()))
     && (!f.stage || r.c.stage === f.stage) && (!f.type || r.c.caseType === f.type)
     && (!f.rag || r.rag.rag === f.rag) && (!f.staff || r.c.assignedStaffId === f.staff))
     .sort((a, b) => ragOrder[a.rag.rag] - ragOrder[b.rag.rag] || a.left - b.left);
@@ -67,6 +68,7 @@ export function viewDashboard() {
         ${sel('type', [['', 'All case types'], ...Object.entries(CASE_TYPES).map(([k, v]) => [k, v.short])], f.type)}
         ${sel('rag', [['', 'All RAG'], ['RED', 'Red'], ['AMBER', 'Amber'], ['GREEN', 'Green']], f.rag)}
         ${u.role !== 'CONSULTANT' ? sel('staff', [['', 'All consultants'], ...consultants.map((x) => [x.id, x.name])], f.staff) : ''}
+        <label class="row small" style="gap:6px"><input type="checkbox" data-filter-closed ${f.closed ? 'checked' : ''}> Show closed cases</label>
         <button class="btn sm" data-action="clearFilters">Clear</button>
       </div>
       <div class="table-wrap" style="margin-top:12px">
@@ -551,7 +553,7 @@ function messageLogCard(c) {
   return `<section class="card">
     <h2>Message log</h2>
     <p class="tiny muted" style="margin-bottom:8px">Everything sent for this case, on every channel.</p>
-    <div class="table-wrap"><table class="data"><thead><tr><th>When</th><th>Channel</th><th>What</th><th>To</th><th>Status</th></tr></thead><tbody>
+    <div class="table-wrap"><table class="data compact"><thead><tr><th>When</th><th>Channel</th><th>What</th><th>To</th><th>Status</th></tr></thead><tbody>
       ${log.map((m) => `<tr><td class="small">${fmtDateTime(m.createdAt)}</td><td>${m.channel === 'WHATSAPP' ? 'WhatsApp' : 'Email'}</td><td class="small">${esc(TRIGGER_LABELS[m.trigger] || m.trigger)}</td>
         <td class="small">${esc(m.toName || m.to)}</td><td><span class="chip ${m.status === 'SENT' ? 'green' : 'grey'} plain">${m.status === 'SENT' ? 'Sent (simulated)' : 'Queued'}</span></td></tr>`).join('') || '<tr><td colspan="5" class="muted" style="text-align:center;padding:12px">No messages yet.</td></tr>'}
     </tbody></table></div>

@@ -48,7 +48,7 @@ function permissionsTab() {
 
 function usersTab() {
   const staff = db.users.filter((x) => x.role !== 'CLIENT');
-  const clients = db.users.filter((x) => x.role === 'CLIENT');
+  const clients = db.users.filter((x) => x.role === 'CLIENT' && !x.historical);
   const perm = db.audit.filter((a) => a.action === 'PERMISSION_CHANGED').sort((a, b) => b.at.localeCompare(a.at)).slice(0, 8);
   const me = auth.currentUser();
   return `<section class="card"><h2>Staff</h2>

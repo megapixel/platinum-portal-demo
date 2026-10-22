@@ -47,7 +47,7 @@ function initials(name) { return String(name).split(' ').filter(Boolean).slice(0
 
 export function filteredLeads() {
   const f = ui.leadFilters;
-  return api.visibleLeads().filter((l) =>
+  return api.visibleLeads().filter((l) => f.archived || !l.archived).filter((l) =>
     (!f.q || l.name.toLowerCase().includes(f.q.toLowerCase()) || (l.email || '').toLowerCase().includes(f.q.toLowerCase()))
     && (!f.source || l.sourceId === f.source) && (!f.staff || (f.staff === 'NONE' ? !l.assignedStaffId : l.assignedStaffId === f.staff)));
 }
@@ -114,6 +114,7 @@ export function viewLeads() {
         <div class="seg"><button class="btn sm ${ui.leadMode === 'board' ? 'active' : ''}" data-action="leadMode" data-mode="board">Board</button><button class="btn sm ${ui.leadMode === 'table' ? 'active' : ''}" data-action="leadMode" data-mode="table">Table</button></div>
         <input class="input sm search" type="search" placeholder="Search name or email" data-lead-filter="q" value="${esc(f.q)}">
         ${sel('source', [['', 'All sources'], ...db.leadSources.map((s) => [s.id, s.label])], f.source)}
+        <label class="row small" style="gap:6px"><input type="checkbox" data-lead-archived ${f.archived ? 'checked' : ''}> Include archived history</label>
         ${u.role !== 'CONSULTANT' ? sel('staff', [['', 'All consultants'], ['NONE', 'Unassigned'], ...consultants.map((x) => [x.id, x.name])], f.staff) : ''}
       </div>
       <div style="margin-top:12px">${ui.leadMode === 'board' ? board : table}</div>

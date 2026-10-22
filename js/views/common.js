@@ -8,7 +8,7 @@ export const ui = {
   modal: null,          // { type: 'upload'|'reject'|'addItem'|'convert'|'lostReason'|..., ... }
   expanded: {},         // staff case view: itemId -> bool
   expandedInit: {},     // caseId -> true once defaults applied
-  filters: { q: '', stage: '', type: '', rag: '', staff: '' },
+  filters: { q: '', stage: '', type: '', rag: '', staff: '', closed: false },
   outboxId: null,
   outboxTab: 'whatsapp',
   templateId: 'tpl_pr',
@@ -16,7 +16,7 @@ export const ui = {
   loginError: '',
   newCase: null,
   leadMode: 'board',
-  leadFilters: { q: '', source: '', staff: '' },
+  leadFilters: { q: '', source: '', staff: '', archived: false },
   leadId: null,
   applyDone: null,
   applyError: '',

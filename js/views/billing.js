@@ -21,7 +21,7 @@ export function casePaymentStatus(caseId) {
 export const paymentChip = (caseId) => { const s = casePaymentStatus(caseId); return s ? invoiceChip(s) : '<span class="chip grey plain">No invoice</span>'; };
 
 function scheduleTable(inv, c) {
-  return `<div class="table-wrap"><table class="data"><thead><tr><th>Instalment</th><th>Due</th><th>Amount</th><th>Paid</th><th></th></tr></thead><tbody>
+  return `<div class="table-wrap"><table class="data compact"><thead><tr><th>Instalment</th><th>Due</th><th>Amount</th><th>Paid</th><th></th></tr></thead><tbody>
     ${scheduleView(inv, c, db.config).map((s) => `<tr><td>${esc(s.label)} (${s.pct}%)</td><td class="small ${s.overdue ? 'fu-overdue' : ''}">${fmtDate(s.dueDate)}</td><td>${fmtMoney(s.amount)}</td><td>${fmtMoney(s.paid)}</td>
       <td>${s.outstanding <= 0 ? '<span class="chip green plain">Paid</span>' : s.overdue ? '<span class="chip red plain">Overdue</span>' : ''}</td></tr>`).join('')}</tbody></table></div>`;
 }

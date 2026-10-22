@@ -15,6 +15,7 @@ import { viewAdmin } from './admin.js';
 import { viewReviewQueue, viewPack } from './consolidation.js';
 import { viewBilling, viewInvoices } from './billing.js';
 import { viewLetterTemplates, viewLetterEditor } from './letters.js';
+import { viewAnalytics } from './analytics.js';
 
 function uploadModal(m) {
   const item = store.item(m.itemId);
@@ -62,6 +63,18 @@ function viewModal() {
 
 export function paint(html) {
   root.innerHTML = html + viewModal();
+  decorateTables();
+}
+
+/** Every table gets a CSV button above it (the action reads the table straight from the page). */
+function decorateTables() {
+  root.querySelectorAll('.table-wrap').forEach((w) => {
+    if (!w.querySelector('table') || (w.previousElementSibling && w.previousElementSibling.classList.contains('csv-bar'))) return;
+    const bar = document.createElement('div');
+    bar.className = 'csv-bar';
+    bar.innerHTML = '<button type="button" class="btn sm ghost" data-action="tableCsv" title="Download this table as CSV">CSV</button>';
+    w.parentNode.insertBefore(bar, w);
+  });
 }
 
 const STAFF_HOME = '/staff';
@@ -108,6 +121,7 @@ export function render() {
         if (parts[4] === 'info') return paint(staffShell('dash', viewInfoForm(caseId, true)));
         return paint(staffShell('dash', viewCase(caseId)));
       }
+      if (path === '/staff/analytics') { requirePerm('analytics:view'); return paint(staffShell('analytics', viewAnalytics())); }
       if (path === '/staff/letters') { requirePerm('letter:template'); return paint(staffShell('letters', viewLetterTemplates())); }
       if (path === '/staff/invoices') { requirePerm('invoice:view'); return paint(staffShell('invoices', viewInvoices())); }
       if (path === '/staff/review') { requirePerm('item:review'); return paint(staffShell('review', viewReviewQueue())); }

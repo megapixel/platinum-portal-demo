@@ -5,6 +5,7 @@ import { SEED_STAFF, SEED_CLIENTS, seedClient } from './core.js';
 import { seedSales } from './sales.js';
 import { seedInvoices } from './invoices.js';
 import { seedLetterTemplates } from './letters.js';
+import { seedHistory } from './history.js';
 import { DEFAULT_MESSAGE_TEMPLATES } from '../messagetemplates.js';
 
 export const DB_VERSION = 2;
@@ -50,5 +51,6 @@ export function buildSeed() {
   for (const c of SEED_CLIENTS) seedClient(d, c);
   seedSales(d);
   seedInvoices(d);
+  seedHistory(d);
   return d;
 }

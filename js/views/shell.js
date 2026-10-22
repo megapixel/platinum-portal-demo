@@ -23,6 +23,7 @@ export function clientShell(body) {
 function navItems(u) {
   const items = [['dash', '#/staff', 'Dashboard', true]];
   items.push(['myday', '#/staff/my-day', 'My day', can(u, 'lead:view')]);
+  items.push(['analytics', '#/staff/analytics', 'Analytics', can(u, 'analytics:view')]);
   items.push(['review', '#/staff/review', 'Review queue', can(u, 'item:review')]);
   items.push(['leads', '#/staff/leads', 'Pipeline', can(u, 'lead:view')]);
   items.push(['invoices', '#/staff/invoices', 'Invoices', can(u, 'invoice:view')]);
@@ -52,7 +53,7 @@ export function staffShell(active, body) {
 
 export function viewLogin(query) {
   const next = query.next || '';
-  const clients = db.users.filter((u) => u.role === 'CLIENT' && !['elizabeth@demo.sg', 'elizabeth.spouse@demo.sg'].includes(u.email));
+  const clients = db.users.filter((u) => u.role === 'CLIENT' && !u.historical && !['elizabeth@demo.sg', 'elizabeth.spouse@demo.sg'].includes(u.email));
   const staff = db.users.filter((u) => u.role !== 'CLIENT');
   const roleName = (r) => ROLES[r].label;
   return `

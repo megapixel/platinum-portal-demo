@@ -5,7 +5,7 @@ import { makeInvoice, round2 } from '../invoicing.js';
 const PKG = { u_elizabeth: 'pkg_pr', u_ahmad: 'pkg_cit', u_nurul: 'pkg_dep', u_weiling: 'pkg_pr', u_rizal: 'pkg_cit', u_priya: 'pkg_pr', u_mai: 'pkg_pr', u_kittisak: 'pkg_dep' };
 // Payment plan per client: fraction of the total paid, and how many days ago.
 const PAID = {
-  u_elizabeth: [[0.5, 30, 'PAYNOW']],                    // deposit paid, balance not yet due
+  u_elizabeth: [],                                       // deposit not yet paid (overdue): the demo records it
   u_ahmad: [],                                           // just issued, nothing paid
   u_nurul: [[0.5, 45, 'BANK_TRANSFER']],
   u_weiling: [],                                         // nothing paid and past the target date: overdue
