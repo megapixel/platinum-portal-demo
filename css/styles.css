@@ -538,3 +538,69 @@ table.data tbody tr:hover { background: #f8f9fc; }
 /* Checkbox labels: keep the box beside its text on narrow screens. */
 label.row { flex-wrap: nowrap; align-items: flex-start; gap: 8px; }
 label.row input[type=checkbox] { margin-top: 3px; flex: 0 0 auto; }
+
+/* ======================================================================
+   v2 additions: roles, public enquiry form, pipeline, onboarding form, admin
+   ====================================================================== */
+.page.wide { max-width: 1500px; }
+.role-tag { font-size: 11px; background: rgba(255, 255, 255, .16); border-radius: 999px; padding: 1px 8px; margin-left: 6px; }
+.chip.gold { color: #7a5a14; background: var(--gold-soft); }
+.req { color: var(--red); font-style: normal; }
+.due { font-size: 12px; font-weight: 600; color: var(--muted); margin-left: 6px; }
+.due.soon { color: var(--amber); }
+.due.overdue { color: var(--red); }
+
+/* public /apply */
+.apply-wrap { min-height: 100vh; display: flex; justify-content: center; padding: 16px; background: var(--bg); }
+.apply-card { width: 100%; max-width: 480px; align-self: flex-start; margin-top: 8px; }
+.apply-card .logo { justify-content: center; margin-bottom: 8px; }
+
+/* client portal */
+.reject-box { background: var(--red-bg); border-left: 4px solid var(--red); border-radius: 8px; padding: 10px 12px; margin-top: 8px; font-size: 14px; }
+.reject-box b { color: var(--red); }
+.reject-box .next { margin-top: 4px; color: var(--text); }
+.submit-card .btn.block { font-size: 16px; padding: 12px; }
+.next-reminder { margin-top: 12px; font-size: 13px; color: var(--muted); }
+.outcome.approved { border-left: 5px solid var(--green); }
+.outcome.rejected { border-left: 5px solid var(--red); }
+
+/* pipeline */
+.seg { display: inline-flex; gap: 0; }
+.seg .btn { border-radius: 0; }
+.seg .btn:first-child { border-radius: 8px 0 0 8px; }
+.seg .btn:last-child { border-radius: 0 8px 8px 0; margin-left: -1px; }
+.seg .btn.active { background: var(--navy); color: #fff; border-color: var(--navy); }
+.kanban { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(210px, 1fr); gap: 10px; overflow-x: auto; padding-bottom: 8px; }
+.kan-col { background: var(--bg); border: 1px dashed transparent; border-radius: 10px; padding: 8px; min-height: 200px; }
+.kan-col.over { border-color: var(--gold); background: var(--gold-soft); }
+.kan-head { display: flex; justify-content: space-between; padding: 2px 4px 8px; font-size: 13px; }
+.kan-body { display: flex; flex-direction: column; gap: 8px; }
+.lead-card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 9px 10px; box-shadow: var(--shadow); cursor: grab; font-size: 13px; }
+.lead-card.dragging { opacity: .45; }
+.lead-card:hover { border-color: var(--gold); }
+.avatar { display: inline-grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; background: var(--navy); color: #fff; font-size: 10px; font-weight: 700; }
+.fu-overdue { color: var(--red); font-weight: 600; }
+.fu-today { color: var(--amber); font-weight: 600; }
+.plain-list { list-style: none; margin: 0; padding: 0; }
+.plain-list li { padding: 8px 0; border-bottom: 1px solid var(--border); }
+.plain-list li:last-child { border-bottom: 0; }
+.click-row { cursor: pointer; }
+.click-row:hover { background: var(--bg); }
+
+/* review modal */
+.reason-picker { border: 0; padding: 0; margin: 0; display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; }
+.reason-picker legend { grid-column: 1 / -1; margin-bottom: 4px; }
+.reason { display: flex; align-items: center; gap: 8px; border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; cursor: pointer; }
+.reason:has(input:checked) { border-color: var(--red); background: var(--red-bg); }
+
+/* admin */
+.matrix th, .matrix td { text-align: center; }
+.matrix th:first-child, .matrix td:first-child { text-align: left; }
+.matrix .group-row td { background: var(--bg); font-weight: 700; font-size: 12px; text-transform: uppercase; letter-spacing: .04em; text-align: left; }
+.matrix .tick { color: var(--green); font-weight: 700; }
+.cat-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 8px; }
+.cat-row .input { flex: 1; min-width: 140px; }
+.form-field-row { display: grid; grid-template-columns: 1fr; gap: 6px; align-items: center; }
+@media (min-width: 800px) { .form-field-row { grid-template-columns: 2fr 1fr auto auto; } }
+.email-card { max-width: 560px; }
+.email-body { white-space: pre-wrap; font-size: 14px; line-height: 1.55; word-break: break-word; }
